@@ -1,5 +1,7 @@
 import requests
 import json
+import smip.queries as queries
+from support_functions.formatters import format_time_series_stamped
 
 class No_Request(Exception):
   def __init__(self, http_status_code, reason):
@@ -9,6 +11,18 @@ class No_Request(Exception):
 class AuthenticationError(Exception):
     def __init__(self, message):
         self.message = message
+
+def perform_graphql_mutation(content, url, headers=None):
+  print(content)
+  try:
+    r = requests.post(url=url, headers=headers, data={"query": content})
+  except requests.RequestException as err:
+    raise No_Request(-1,err)
+  r.raise_for_status()
+  if r.ok:
+    return r.json()
+  else:
+    raise No_Request(r.status_code, r.reason)
 
 def perform_graphql_request(content, url, headers=None):
   try:
@@ -24,31 +38,19 @@ def perform_graphql_request(content, url, headers=None):
 def get_bearer_token (url, username, role, password):
 
   print(url, username, role, password)
-  response = perform_graphql_request(f"""
-    mutation authRequest {{
-      authenticationRequest(
-        input: {{authenticator: "{username}", role: "{role}", userName: "{username}"}}
-      ) {{
-        jwtRequest {{
-          challenge, message
-        }}
-      }}
-    }}
-  """, url = url) 
+  query = queries.bearer_token.format(username=username, role=role)
+  print("sending query:", query)
+  response = perform_graphql_request(query, url=url)
+
   jwt_request = response['data']['authenticationRequest']['jwtRequest']
   if jwt_request['challenge'] is None:
     raise AuthenticationError(jwt_request['message'])
   else:
       print("Challenge received: " + jwt_request['challenge'])
-      response=perform_graphql_request(f"""
-        mutation authValidation {{
-          authenticationValidation(
-            input: {{authenticator: "{username}", signedChallenge: "{jwt_request["challenge"]}|{password}"}}
-            ) {{
-            jwtClaim
-          }}
-        }}
-    """, url = url)
+      query = queries.challenge_response.format(username=username,
+        challenge=jwt_request['challenge'],
+        password=password)
+      response=perform_graphql_request(query, url=url)
 
   try:
     jwt_claim = response['data']['authenticationValidation']['jwtClaim']
@@ -57,69 +59,39 @@ def get_bearer_token (url, username, role, password):
 
   return jwt_claim
 
-def get_equipment_description(url, token, eq_id):
+def get_equipment_description(url, token, attrib_id):
 
-  print("Requesting Data from CESMII Smart Manufacturing Platform...")
-  print()
-
-  ''' Request some timeseries data''' 
-  smp_query = f'''
-      query eqById {{
-        equipment(id: "{eq_id}") {{
-          displayName
-          attributes {{
-            datatype
-            id
-          }}
-        }}
-      }}'''
-
-
-  attribute_name = "Electric Potential"
-  equipment_name = "Motor"
-  smp_query = f'''
-        query {{
-                    typeToAttributeTypes(filter: {{displayName: {{equalTo: "{attribute_name}"}}}}) {{
-                        id
-                        dataType
-                        maxValue
-                        id
-                        displayName
-                        partOf {{
-                        description
-                        id
-                            thingsByTypeId(filter:  {{displayName: {{equalTo: "{equipment_name}"}}}}) {{
-                                displayName
-                                id
-                                updatedTimestamp
-                                attributesByPartOfId(filter: {{displayName: {{equalTo: "{attribute_name}"}}}}) {{
-                                    floatValue
-                                    intValue
-                                    id
-                                }}
-                            }}
-                        }}
-                    }}
-            }}
-    '''
-
-  smp_query = f'''
-    query attribById {{
-      attribute(id: "{eq_id}") {{
-        id
-        dataType
-        description
-        displayName
-        updatedTimestamp
-        createdTimestamp
-        datetimeValue
-        objectValue
-        }}
-      }} 
-  '''
-  print(smp_query)
+  query = queries.attrib_by_id.format(attrib_id=attrib_id)
+  print("sending query:", query)
+  
   try:
-    smp_response = perform_graphql_request(smp_query, url,  headers={"Authorization": f"Bearer {token}"})
+    smp_response = perform_graphql_mutation(query,
+      url,
+      headers={"Authorization": f"Bearer {token}"}
+    )
+    print("SMP_RESPONSE={}".format(smp_response))
+    return smp_response['data']
+  except Exception as err:
+    if "forbidden" in str(err).lower() or "unauthorized" in str(err).lower():
+      raise(AuthenticationError(err))
+    else:
+      raise(err)
+
+def post_timeseries_id(url, token, attrib_id, filename):
+  print("calling post_timeseries_id with {}",[url, token,attrib_id, filename])
+  (start_time, end_time, stamped_data) = format_time_series_stamped(filename, index=1)
+  print("getting query template")
+  query = queries.update_timeseries
+  print("query template: \n", query)
+  try:
+    query = query.format(attrib_id=attrib_id,
+      start_time=start_time, end_time=end_time, stamped_data=stamped_data)
+  except Exception as err:
+    print(err)
+  
+  print("formated query = ",query)
+  try:
+    smp_response = perform_graphql_request(query, url,  headers={"Authorization": f"Bearer {token}"})
     print("SMP_RESPONSE={}".format(smp_response))
     return smp_response['data']
   except Exception as err:

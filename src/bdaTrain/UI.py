@@ -1,11 +1,13 @@
+from nturl2path import url2pathname
 import PySimpleGUI as sg
 import requests
 
-available_tags = []
+available_attribs = {"foo": 1}
 inputs_list = []
 outputs_list = []
 top_text_width=16
 bda_token_expiration = "no token"
+smip_auth = {}
 layout = [
   [
     sg.T("BDA URL:"),
@@ -32,15 +34,16 @@ layout = [
   [
     sg.Column(
       [
-        [ sg.T("Available Tags")],
-        [ sg.Listbox(available_tags, size=(15,10,), select_mode="LISTBOX_SELECT_MODE_SINGLE") ]
+        [ sg.T("Available Attributes")],
+        [ sg.Listbox(values=list(available_attribs.keys()), size=(15,10,),
+          enable_events=True, key="-ATTRIBUTE_LIST-", select_mode="LISTBOX_SELECT_MODE_SINGLE") ]
       ]
     ),
     sg.Column(
       [
         [ sg.B("INPUTS ->", enable_events=True, key="-INPUT_SEND-") ],
         [ sg.B("OUTPUT ->", enable_events=True, key="-OUTPUT_SEND-") ],
-        [ sg.B("<- DELETE", enable_events=True, key="-DELETE_TAG-") ]
+        [ sg.B("<- DELETE", enable_events=True, key="-DELETE_ATTRIB-") ]
       ],
       vertical_alignment="center"
     ),
@@ -78,13 +81,29 @@ layout = [
   [
     sg.T("Error Output", visible=False, key="-ERRORREPORT1-"),
     sg.Multiline("Error Output", visible=False, key="-ERRORREPORT2-")
-  ]
+  ] 
 ]
+
+def add_attribute(attrib_id, attrib_name, window):
+  print("received {} and {}".format(attrib_id, attrib_name))
+  available_attribs[attrib_name] = attrib_id
+  values = list(available_attribs.keys())
+  print(values)
+  window['-ATTRIBUTE_LIST-'].update(values=values)
 
 def assign_settings(settings, window):
   if settings['url'] is not None: window['-BDA_URL-'].update(settings['url']) 
   if settings['username'] is not None: window['-BDA_USER-'].update(settings['username']) 
   if settings['password'] is not None: window['-BDA_PASSWORD-'].update(settings['password']) 
+
+def set_smip_auth(url, username, role, password, token):
+  global smip_auth
+  smip_auth['url'] = url
+  smip_auth['username'] = username
+  smip_auth['role'] = role
+  smip_auth['password'] = password
+  smip_auth['token'] = token
+
 
 def handler(event, values, window):
   if event == "-LOG_IN_BDA-":

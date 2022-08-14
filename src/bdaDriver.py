@@ -4,7 +4,7 @@ import PySimpleGUI as sg
 import smip
 import bdaTrain
 import footer
-from uifunctions import settings
+from support_functions.uifunctions import settings
 
 
 tab_group = sg.TabGroup([[
@@ -23,7 +23,9 @@ if __name__ == "__main__":
   while True:
     event, values = window.read()
     try:
-      if smip.handler(event, values, window):
+      if smip.handler(event, values, window,
+          token_to_BDA=bdaTrain.set_smip_auth,
+          attrib_to_BDA=bdaTrain.add_attribute):
         continue
       if bdaTrain.handler(event, values, window):
         continue
