@@ -3,7 +3,7 @@ import PySimpleGUI as sg
 import jwt
 import json
 import datetime
-from smip.graphQL import get_bearer_token, get_equipment_description, post_timeseries_id
+import smip.graphQL
 top_text_width=16
 smip_token_expiration = "no token"
 attrib_description = ""
@@ -13,6 +13,7 @@ username = ""
 password = ""
 role = ""
 attrib_id = None
+my_settings_copy = {}
 
 layout = [
   [
@@ -25,7 +26,8 @@ layout = [
     sg.T("SMIP role:"),
     sg.In("role", enable_events=True, key="-SMIP_ROLE-", size=top_text_width),
     sg.T("SMIP password:"),
-    sg.In("password", enable_events=True, key="-SMIP_PASSWORD-", size=top_text_width),
+    sg.In("password", enable_events=True, key="-SMIP_PASSWORD-", size=top_text_width,
+      password_char="*"),
   ],
   [
     sg.B("Get Token", enable_events=True, key="-GET_SMIP_TOKEN-"),
@@ -45,15 +47,22 @@ layout = [
           sg.In("", size=(5, 1), key="-ATTRIBUTE_ID-"),
         ],
         [
-          sg.B("Validate Id", enable_events=True, key="-VALIDATE_ID-")
+          sg.B("Validate Id", enable_events=True, key="-VALIDATE_ID-"),
+          sg.B("Delete all data from ID", button_color="red", enable_events=True, visible=False, key="-DELETE_DATA_FROM_ID-")
         ],
         [
           sg.In("", visible=False, key='-UPLOAD_FILENAME-', enable_events=True),
           sg.FileBrowse("Upload file to attribute", enable_events=True, target="-UPLOAD_FILENAME-"),
-          sg.B("Download data from attribute", enable_events=True, key="-DOWNLOAD_ATTRIBUTE-"),
         ],
         [
-          sg.T("Attribute name"), sg.In("ATTRIBUTE NAME", size=10, enable_events=True, key="-ATTRIBUTE_NAME-"),
+          sg.Radio("Replace All", group_id="InsertReplace", default=True, key="-REPLACE_ALL-" ),
+          sg.Radio("Insert", group_id="InsertReplace", default=False, key="-INSERT_DATA-" )
+        ],
+        [
+          sg.T("Attribute name"), 
+        ],
+        [
+          sg.In("ATTRIBUTE NAME", size=30, enable_events=True, key="-ATTRIBUTE_NAME-") 
         ],
         [
           sg.B("Send attribute to BDA", enable_events=True, key="-ATTRIBUTE_TO_BDA-")
@@ -76,36 +85,40 @@ layout = [
 ]
 
 def assign_settings(settings, window):
+  global my_settings_copy
+  my_settings_copy = settings
   if settings['url'] is not None: window['-SMIP_URL-'].update(settings['url']) 
   if settings['username'] is not None: window['-SMIP_USER-'].update(settings['username']) 
   if settings['role'] is not None: window['-SMIP_ROLE-'].update(settings['role']) 
   if settings['password'] is not None: window['-SMIP_PASSWORD-'].update(settings['password']) 
+  if settings['attribute_id'] is not None: window['-ATTRIBUTE_ID-'].update(settings['attribute_id']) 
   
+def set_bindings(window):
+  window['-ATTRIBUTE_NAME-'].bind('<KeyPress-Return>','RETURN')
+  window['-SMIP_PASSWORD-'].bind('<KeyPress-Return>','RETURN')
+
+
+
+
 def handler(event, values, window, token_to_BDA, attrib_to_BDA):
-  global smip_token
-  global url
-  global username
-  global role
-  global password
-  global attrib_id
-  if event == "-GET_SMIP_TOKEN-":
+
+  global smip_token, url, username, role, password, attrib_id, my_settings_copy
+  if event == "-GET_SMIP_TOKEN-" or event == "-SMIP_PASSWORD-" + "RETURN":
     try:
       url = values['-SMIP_URL-']
       username=values['-SMIP_USER-']
       role=values['-SMIP_ROLE-']
       password=values['-SMIP_PASSWORD-']
 
-      smip_token = get_bearer_token(url=url,
-                    username=username,
-                    role=role,
-                    password=password
+      smip_token = smip.graphQL.get_bearer_token(url=url, username=username,
+                    role=role, password=password
       )
-      unixexpiry= jwt.decode(smip_token, options={"verify_signature": False})['exp']
-      print("got unixexpiry = {}".format(unixexpiry))
       smip_token_expiration = \
-        datetime.datetime.fromtimestamp(unixexpiry).strftime("%m/%d/%Y, %H:%M:%S")
+        datetime.datetime.fromtimestamp(
+          jwt.decode(smip_token, options={"verify_signature": False})['exp']
+        ).strftime("%m/%d/%Y, %H:%M:%S")
+
       window['-SMIP_EXPIRES-'].update(smip_token_expiration)
-      print("Bearer {}".format(smip_token))
       window['-SEND_TO_BDA-'].update(visible=True)
     except Exception as err:
       print(err)
@@ -114,25 +127,49 @@ def handler(event, values, window, token_to_BDA, attrib_to_BDA):
   if event == "-VALIDATE_ID-":
     try:
       attrib_id = values['-ATTRIBUTE_ID-']
-      attrib_description = get_equipment_description(url, smip_token, attrib_id)
+      attrib_description = smip.graphQL.get_equipment_description(url, smip_token, attrib_id)
+      displayName = attrib_description['attribute']['displayName']
       pretty_attrib = json.dumps(attrib_description, sort_keys=True, indent=2)
       window['-EP_DESCRIPTION-'].update(f"{attrib_id}: {pretty_attrib}")
+      window['-ATTRIBUTE_NAME-'].update("{}_{}".format(displayName,attrib_id))
+      window["-DELETE_DATA_FROM_ID-"].update(visible=True)
+      my_settings_copy['attribute_id'] = attrib_id
     except Exception as err:
-      print("err: {}".format(err))
       window['-EP_DESCRIPTION-'].update("Could not validate id {}".format(attrib_id))
+    return True
+
+  if event == "-DELETE_DATA_FROM_ID-":
+    try:
+      attrib_id = values['-ATTRIBUTE_ID-']
+      attrib_description = smip.graphQL.get_equipment_description(url, smip_token, attrib_id)
+      displayName = attrib_description['attribute']['displayName']
+      confirm_message = "Please confirm IRREVERSIBLE deletion of data from\n   \
+        Attribute with ID: {} and name {}:".format(attrib_id, displayName)
+      user_confirmed = sg.PopupOKCancel(confirm_message, title="DELETION ALERT", button_color=("red","blue"))
+      if user_confirmed == "OK":
+        smip.graphQL.delete_timeseries_id(url, smip_token, attrib_id)
+        window["-DELETE_DATA_FROM_ID-"].update(visible=False)
+        my_settings_copy['attribute_id'] = ""
+    except Exception as err:
+      sg.Popup("Attribute {} data NOT deleted.".format(attrib_id), auto_close=False)
     return True
 
   if event == "-UPLOAD_FILENAME-":
     try:
       attrib_id = values['-ATTRIBUTE_ID-']
-      post_timeseries_id(url, smip_token, attrib_id, filename = values['-UPLOAD_FILENAME-'])
+      if values['-REPLACE_ALL-'] == True: replace_all = True 
+      else: replace_all = False
+
+      print(smip.graphQL.post_timeseries_id(url, smip_token, attrib_id,
+        filename = values['-UPLOAD_FILENAME-'], replace_all=replace_all))
     except Exception as err:
       print(err)
     return True
 
-  if event == "-ATTRIBUTE_TO_BDA-":
+  if event == "-ATTRIBUTE_TO_BDA-" or event == "-ATTRIBUTE_NAME-" + "RETURN":
     try:
       attrib_to_BDA(values['-ATTRIBUTE_ID-'], values['-ATTRIBUTE_NAME-'], window)
+      window['-ATTRIBUTE_NAME-'].update(select=True)
     except Exception as err:
       print(err)
     return True
@@ -145,10 +182,7 @@ def handler(event, values, window, token_to_BDA, attrib_to_BDA):
       print(err)
     return True
 
-
   return False
-
-
 
 
 if __name__ == "__main__":

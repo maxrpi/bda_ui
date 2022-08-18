@@ -18,16 +18,23 @@ if __name__ == "__main__":
   
   window = sg.Window('BDA Service Interface App', layout, finalize=True)
   smip.assign_settings(settings['SMIP'], window)
+  smip.set_bindings(window)
   bdaTrain.assign_settings(settings['BDA'], window)
+  bdaTrain.set_bindings(window)
 
   while True:
     event, values = window.read()
+
+    if event == sg.WINDOW_CLOSED or event == "-EXIT-":
+      break
+
     try:
       if smip.handler(event, values, window,
           token_to_BDA=bdaTrain.set_smip_auth,
           attrib_to_BDA=bdaTrain.add_attribute):
         continue
-      if bdaTrain.handler(event, values, window):
+      if bdaTrain.handler(event, values, window,
+        get_timeseries_array=smip.get_timeseries_array):
         continue
       if footer.handler(event, values, window):
         continue
@@ -35,7 +42,5 @@ if __name__ == "__main__":
       print(err)
 
 
-    if event == sg.WINDOW_CLOSED or event == "-EXIT-":
-      break
 
   window.close()

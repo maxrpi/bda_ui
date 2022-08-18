@@ -52,3 +52,28 @@ update_timeseries = '''
     }}
   }}
   '''
+
+get_timeseries = '''
+  query query_num_{index} {{
+    getRawHistoryDataWithSampling(
+            maxSamples: {max_samples} 
+            ids: "{attrib_id}"
+            startTime: "{start_time}"
+            endTime: "{end_time}"
+    ) {{
+        ts
+        floatvalue
+    }}
+}}
+'''
+
+get_first_timestamp = '''
+  query firstTime {{
+  attribute(id: "{attrib_id}") {{
+    getTimeSeries(maxSamples: 0) {{
+      ts
+      floatvalue
+    }}
+  }}
+}}
+'''

@@ -1,7 +1,9 @@
 import requests
 import json
+import pandas as pd
 import smip.queries as queries
-from support_functions.formatters import format_time_series_stamped
+from support_functions import formatters
+from support_functions.formatters import format_time_series_stamped, json_timeseries_to_table
 
 class No_Request(Exception):
   def __init__(self, http_status_code, reason):
@@ -13,7 +15,7 @@ class AuthenticationError(Exception):
         self.message = message
 
 def perform_graphql_mutation(content, url, headers=None):
-  print(content)
+
   try:
     r = requests.post(url=url, headers=headers, data={"query": content})
   except requests.RequestException as err:
@@ -37,16 +39,13 @@ def perform_graphql_request(content, url, headers=None):
 
 def get_bearer_token (url, username, role, password):
 
-  print(url, username, role, password)
   query = queries.bearer_token.format(username=username, role=role)
-  print("sending query:", query)
   response = perform_graphql_request(query, url=url)
 
   jwt_request = response['data']['authenticationRequest']['jwtRequest']
   if jwt_request['challenge'] is None:
     raise AuthenticationError(jwt_request['message'])
   else:
-      print("Challenge received: " + jwt_request['challenge'])
       query = queries.challenge_response.format(username=username,
         challenge=jwt_request['challenge'],
         password=password)
@@ -62,14 +61,12 @@ def get_bearer_token (url, username, role, password):
 def get_equipment_description(url, token, attrib_id):
 
   query = queries.attrib_by_id.format(attrib_id=attrib_id)
-  print("sending query:", query)
   
   try:
     smp_response = perform_graphql_mutation(query,
       url,
       headers={"Authorization": f"Bearer {token}"}
     )
-    print("SMP_RESPONSE={}".format(smp_response))
     return smp_response['data']
   except Exception as err:
     if "forbidden" in str(err).lower() or "unauthorized" in str(err).lower():
@@ -77,25 +74,77 @@ def get_equipment_description(url, token, attrib_id):
     else:
       raise(err)
 
-def post_timeseries_id(url, token, attrib_id, filename):
-  print("calling post_timeseries_id with {}",[url, token,attrib_id, filename])
-  (start_time, end_time, stamped_data) = format_time_series_stamped(filename, index=1)
-  print("getting query template")
-  query = queries.update_timeseries
-  print("query template: \n", query)
-  try:
-    query = query.format(attrib_id=attrib_id,
-      start_time=start_time, end_time=end_time, stamped_data=stamped_data)
-  except Exception as err:
-    print(err)
+
+def post_timeseries_id(url, token, attrib_id, filename, delete_all=False, replace_all=False):
+  (start_time, end_time, stamped_data) = \
+    format_time_series_stamped(filename, index=1, max_timerange=replace_all)
+  query_template = queries.update_timeseries
+  query = query_template.format(attrib_id=attrib_id,
+    start_time=start_time, end_time=end_time, stamped_data=stamped_data)
   
-  print("formated query = ",query)
   try:
     smp_response = perform_graphql_request(query, url,  headers={"Authorization": f"Bearer {token}"})
-    print("SMP_RESPONSE={}".format(smp_response))
     return smp_response['data']
   except Exception as err:
     if "forbidden" in str(err).lower() or "unauthorized" in str(err).lower():
       raise(AuthenticationError(err))
     else:
       raise(err)
+
+def delete_timeseries_id(url, token, attrib_id):
+  (start_time, end_time) = formatters.max_time_range()
+  query_template = queries.update_timeseries
+  query = query_template.format(attrib_id=attrib_id,
+    start_time=start_time, end_time=end_time, stamped_data="")
+  try:
+    smp_response = perform_graphql_request(query, url,  headers={"Authorization": f"Bearer {token}"})
+    return smp_response['data']
+  except Exception as err:
+    if "forbidden" in str(err).lower() or "unauthorized" in str(err).lower():
+      raise(AuthenticationError(err))
+    else:
+      raise(err)
+
+def get_timeseries_array(url, token, attrib_id_list,
+  start_time, end_time, max_samples, period) -> pd.DataFrame:
+  dataframes = []
+  for attrib_id in attrib_id_list:
+    dataframes.append(get_timeseries(url, token, attrib_id, start_time, end_time, max_samples))
+  
+  return formatters.combine_dataframes(dataframes, period)
+
+def get_timeseries(url, token, attrib_id, start_time, end_time, max_samples):
+
+  query_template = queries.get_timeseries
+  query = query_template.format(index=1, attrib_id=attrib_id,
+    start_time=start_time, end_time=end_time, max_samples=max_samples)
+  
+  print("get_timeseries_query:\n", query)
+  try:
+    smp_response = perform_graphql_request(query, url,  headers={"Authorization": f"Bearer {token}"})
+  except Exception as err:
+    print("get_time_series error:", err)
+    if "forbidden" in str(err).lower() or "unauthorized" in str(err).lower():
+      raise(AuthenticationError(err))
+    else:
+      raise(err)
+    print(smp_response)
+  
+  dataframe = json_timeseries_to_table(smp_response['data']['getRawHistoryDataWithSampling'])
+  dataframe.rename(columns={"floatvalue": "{}".format(attrib_id)}, inplace=True)
+  return dataframe
+
+def get_first_timestamp( url, token, attrib_id):
+  query_template = queries.get_first_timestamp
+  query = query_template.format(attrib_id=attrib_id)
+  try:
+    smp_response = perform_graphql_request(query, url,  headers={"Authorization": f"Bearer {token}"})
+  except Exception as err:
+    if "forbidden" in str(err).lower() or "unauthorized" in str(err).lower():
+      raise(AuthenticationError(err))
+    else:
+      raise(err)
+
+  print(smp_response)
+  
+  return smp_response['data']
