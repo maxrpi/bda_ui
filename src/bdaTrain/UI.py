@@ -200,7 +200,6 @@ def create_attrib_id_list():
   global known_attributes, inputs_keys, outputs_keys
   attrib_id_list = [known_attributes[key] for key in inputs_keys + outputs_keys]
   attrib_id_list_string = ",".join(attrib_id_list)
-  print("attrib_id_list:", attrib_id_list_string)
   return attrib_id_list
 
 def handler(event, values, window, get_timeseries_array):
@@ -237,7 +236,6 @@ def handler(event, values, window, get_timeseries_array):
     return True
 
   if event == "-DOWNLOAD_REQUEST_FILENAME-":
-    print("got event:", event)
     filename = values['-DOWNLOAD_REQUEST_FILENAME-']
     df = get_timeseries_array(smip_auth['url'],
       smip_auth['token'], create_attrib_id_list(),

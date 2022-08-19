@@ -22,15 +22,12 @@ def format_time_series_stamped(datafile, index, max_timerange=False):
     ts = row['ts'].strftime("%Y-%m-%dT%H:%M:%SZ")
     line = ' {{timestamp: "{}", value: "{}", status: "0" }}\n'.format(ts, row['data'])
     stamped_data = stamped_data + line
-  print (start_time, end_time, stamped_data)
   return (start_time, end_time, stamped_data)
 
 def json_timeseries_to_table(jd):
   
-  print("json_timeseries-to_table:", jd)
   df = pd.DataFrame.from_dict(jd)
   df['ts'] = pd.to_datetime(df['ts'], dayfirst=True)
-  print(df)
   return df
 
 def break_df_into_ranges(df: pd.DataFrame):

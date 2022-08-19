@@ -67,13 +67,17 @@ get_timeseries = '''
 }}
 '''
 
-get_first_timestamp = '''
+get_raw_attribute_data = '''
   query firstTime {{
-  attribute(id: "{attrib_id}") {{
-    getTimeSeries(maxSamples: 0) {{
-      ts
-      floatvalue
+    attribute(id: "{attrib_id}") {{
+      getTimeSeries(
+        maxSamples: 0
+        startTime: "{start_time}"
+        endTime: "{end_time}"
+      ) {{
+        ts
+        floatvalue
+      }}
     }}
   }}
-}}
-'''
+  '''

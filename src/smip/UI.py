@@ -1,4 +1,3 @@
-from lib2to3.pgen2 import token
 import PySimpleGUI as sg
 import jwt
 import json
@@ -57,6 +56,9 @@ layout = [
         [
           sg.Radio("Replace All", group_id="InsertReplace", default=True, key="-REPLACE_ALL-" ),
           sg.Radio("Insert", group_id="InsertReplace", default=False, key="-INSERT_DATA-" )
+        ],
+        [
+          sg.B("Download attribute data", enable_events=True, key="-DOWNLOAD_ATTRIBUTE-", visible=False)
         ],
         [
           sg.T("Attribute name"), 
@@ -133,6 +135,7 @@ def handler(event, values, window, token_to_BDA, attrib_to_BDA):
       window['-EP_DESCRIPTION-'].update(f"{attrib_id}: {pretty_attrib}")
       window['-ATTRIBUTE_NAME-'].update("{}_{}".format(displayName,attrib_id))
       window["-DELETE_DATA_FROM_ID-"].update(visible=True)
+      window["-DOWNLOAD_ATTRIBUTE-"].update(visible=True)
       my_settings_copy['attribute_id'] = attrib_id
     except Exception as err:
       window['-EP_DESCRIPTION-'].update("Could not validate id {}".format(attrib_id))
@@ -166,6 +169,12 @@ def handler(event, values, window, token_to_BDA, attrib_to_BDA):
       print(err)
     return True
 
+  if event == "-DOWNLOAD_ATTRIBUTE-":
+      window["-DOWNLOAD_ATTRIBUTE-"].update(visible=True)
+      attrib_data = smip.graphQL.get_raw_attribute_data(url, smip_token, attrib_id)
+      window['-EP_DESCRIPTION-'].update(attrib_data)
+      return True
+
   if event == "-ATTRIBUTE_TO_BDA-" or event == "-ATTRIBUTE_NAME-" + "RETURN":
     try:
       attrib_to_BDA(values['-ATTRIBUTE_ID-'], values['-ATTRIBUTE_NAME-'], window)
@@ -176,7 +185,6 @@ def handler(event, values, window, token_to_BDA, attrib_to_BDA):
 
   if event == "-SEND_TO_BDA-":
     try:
-      print("attempting to send auth to BDA")
       token_to_BDA(url, username, role, password, smip_token)
     except Exception as err:
       print(err)
