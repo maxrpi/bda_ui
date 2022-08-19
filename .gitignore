@@ -128,3 +128,5 @@ dmypy.json
 # Pyre type checker
 .pyre/
 src/.config.ini
+src/foo.txt
+src/bar.txt
