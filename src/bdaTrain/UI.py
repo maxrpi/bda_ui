@@ -2,6 +2,8 @@ import PySimpleGUI as sg
 import pandas as pd
 import dateutil.parser
 import datetime
+import bda_service
+import refresher
 
 known_attributes = {}
 avail_keys = list(known_attributes.keys())
@@ -14,17 +16,21 @@ smip_auth = {}
 startTimeObj = None
 endTimeObj = None
 my_settings_copy = {}
+user = None
 
 layout = [
   [
     sg.T("BDA URL:"),
     sg.In("URL", enable_events=True, key="-BDA_URL-", size=32),
+    sg.In("ServerSecret", enable_events=True, key="-SERVER_SECRET-", size=10),
+    sg.B("Init server", enable_events=True, key="-INIT_SERVER-")
   ],
   [
     sg.T("BDA Username:"),
     sg.In("username", enable_events=True, key="-BDA_USER-", size=top_text_width),
     sg.T("BDA password:"),
-    sg.In("password", enable_events=True, key="-BDA_PASSWORD-", size=top_text_width),
+    sg.In("password", enable_events=True, key="-BDA_PASSWORD-", size=top_text_width, password_char="*"),
+    sg.B("Create User", enable_events=True, key="-CREATE_USER-")
   ],
   [
     sg.B("Log in", enable_events=True, key="-LOG_IN_BDA-"),
@@ -202,14 +208,50 @@ def create_attrib_id_list():
   attrib_id_list_string = ",".join(attrib_id_list)
   return attrib_id_list
 
+
+def init_server(values):
+  global service
+  service_url = values["-BDA_URL-"]
+  secret = values["-SERVER_SECRET-"]
+  admin = bda_service.User("admin", "adminpassword")
+  service = bda_service.BDAService(service_url, secret, admin)
+  service.initialize_server()
+  service.login_user(admin)
+  refresher.refresh_daemon.add_task(admin)
+
+def create_user(values):
+  global service
+  username = values["-BDA_USER-"]
+  password = values["-BDA_PASSWORD-"]
+  user = bda_service.User(username, password)
+  service.add_user(user)
+  return user
+
+
 def handler(event, values, window, get_timeseries_array):
-  global startTimeObj, endTimeObj
-  if event == "-LOG_IN_BDA-":
+  global startTimeObj, endTimeObj, service, user
+  if event == "-INIT_SERVER-":
     try:
-      pass
+      init_server(values)
     except Exception as err:
       print(err)
     return True
+  if event == "-CREATE_USER-":
+    try:
+      user = create_user(values)
+    except Exception as err:
+      print(err)
+    return True
+
+  if event == "-LOG_IN_BDA-":
+    try:
+      service.login_user(user)
+      refresher.refresh_daemon.add_task(user)
+      window['-BDA_EXPIRES-'].update(user.auth_expiration)
+    except Exception as err:
+      print(err)
+    return True
+
   if event == "-INPUT_SEND-":
     avail_to_inputs(values, window)
     return True
@@ -249,6 +291,18 @@ def handler(event, values, window, get_timeseries_array):
       fd.close()
       
     return True
+
+  if event == "-TRAIN_MKO-":
+    if user is None:
+      return True
+    model_name = values['-MKOname-']
+    claim_check = bda_service.create_mko(service, user, model_name)
+    mko = bda_service.redeem_claim_check(service, user, claim_check)
+    print("From UI: {}".format(mko))
+
+    
+    return True
+
   return False
 
 if __name__ == "__main__":

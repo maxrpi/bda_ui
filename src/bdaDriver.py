@@ -1,11 +1,15 @@
 #!/usr/bin/env python
 from pathlib import Path
 import PySimpleGUI as sg
+import refresher
 import smip
 import bdaTrain
 import footer
 from support_functions.uifunctions import settings
 
+import refresher
+refresher.refresh_daemon = refresher.RefreshDaemon(60)
+refresher.refresh_daemon.run()
 
 tab_group = sg.TabGroup([[
   sg.Tab('SMIP', smip.layout),
@@ -44,3 +48,4 @@ if __name__ == "__main__":
 
 
   window.close()
+

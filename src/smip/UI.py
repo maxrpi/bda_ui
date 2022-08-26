@@ -3,6 +3,7 @@ import jwt
 import json
 import datetime
 import smip.graphQL
+import pyperclip
 top_text_width=16
 smip_token_expiration = "no token"
 attrib_description = ""
@@ -31,6 +32,7 @@ layout = [
   [
     sg.B("Get Token", enable_events=True, key="-GET_SMIP_TOKEN-"),
     sg.B("Send to BDA", enable_events=True, visible=False, key="-SEND_TO_BDA-"),
+    sg.B("Send to clipboard", enable_events=True, visible=False, key="-SEND_TO_CLIPBOARD-"),
     sg.T("SMIP token expires:"),
     sg.Multiline(smip_token_expiration, size=(20,1),
                 no_scrollbar=True, justification="t", key="-SMIP_EXPIRES-"),
@@ -64,7 +66,7 @@ layout = [
           sg.T("Attribute name"), 
         ],
         [
-          sg.In("ATTRIBUTE NAME", size=30, enable_events=True, key="-ATTRIBUTE_NAME-") 
+          sg.In("ATTRIBUTE NAME", size=30, enable_events=True, key="-ATTRIBUTE_NAME-") ,
         ],
         [
           sg.B("Send attribute to BDA", enable_events=True, key="-ATTRIBUTE_TO_BDA-")
@@ -122,6 +124,7 @@ def handler(event, values, window, token_to_BDA, attrib_to_BDA):
 
       window['-SMIP_EXPIRES-'].update(smip_token_expiration)
       window['-SEND_TO_BDA-'].update(visible=True)
+      window['-SEND_TO_CLIPBOARD-'].update(visible=True)
     except Exception as err:
       print(err)
     return True
@@ -189,6 +192,15 @@ def handler(event, values, window, token_to_BDA, attrib_to_BDA):
     except Exception as err:
       print(err)
     return True
+
+  if event == "-SEND_TO_CLIPBOARD-":
+    try:
+      pyperclip.copy(smip_token)
+    except Exception as err:
+      print(err)
+    return True
+
+
 
   return False
 
