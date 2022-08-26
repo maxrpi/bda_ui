@@ -6,6 +6,7 @@ import smip.graphQL
 import pyperclip
 top_text_width=16
 smip_token_expiration = "no token"
+auth = {}
 attrib_description = ""
 url = ""
 smip_token = None
@@ -104,9 +105,9 @@ def set_bindings(window):
 
 
 
-def handler(event, values, window, token_to_BDA, attrib_to_BDA):
+def handler(event, values, window, attrib_to_BDA):
 
-  global smip_token, url, username, role, password, attrib_id, my_settings_copy
+  global smip_token, url, username, role, password, attrib_id, my_settings_copy, auth
   if event == "-GET_SMIP_TOKEN-" or event == "-SMIP_PASSWORD-" + "RETURN":
     try:
       url = values['-SMIP_URL-']
@@ -180,6 +181,7 @@ def handler(event, values, window, token_to_BDA, attrib_to_BDA):
 
   if event == "-ATTRIBUTE_TO_BDA-" or event == "-ATTRIBUTE_NAME-" + "RETURN":
     try:
+      
       attrib_to_BDA(values['-ATTRIBUTE_ID-'], values['-ATTRIBUTE_NAME-'], window)
       window['-ATTRIBUTE_NAME-'].update(select=True)
     except Exception as err:
@@ -188,7 +190,11 @@ def handler(event, values, window, token_to_BDA, attrib_to_BDA):
 
   if event == "-SEND_TO_BDA-":
     try:
-      token_to_BDA(url, username, role, password, smip_token)
+      auth['url'] = url
+      auth['username'] = username
+      auth['role'] = role
+      auth['password'] = password
+      auth['token'] = smip_token
     except Exception as err:
       print(err)
     return True
