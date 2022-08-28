@@ -16,7 +16,6 @@ smip_auth = {}
 startTimeObj = None
 endTimeObj = None
 my_settings_copy = {}
-user = None
 
 layout = [
   [
@@ -42,7 +41,7 @@ layout = [
     sg.HorizontalSeparator()
   ],
   [
-    sg.T("CREATE ANALYSIS")
+    sg.T("CREATE MODEL")
   ],
   [
     sg.Column(
@@ -121,6 +120,7 @@ def assign_settings(settings, window):
   if settings['url'] is not None: window['-BDA_URL-'].update(settings['url']) 
   if settings['username'] is not None: window['-BDA_USER-'].update(settings['username']) 
   if settings['password'] is not None: window['-BDA_PASSWORD-'].update(settings['password']) 
+  if settings['server_secret'] is not None: window['-SERVER_SECRET-'].update(settings['server_secret']) 
 
 def set_bindings(window):
   window['-PARSE_START-'].bind('<KeyPress-Return>','RETURN')
@@ -220,7 +220,7 @@ def init_server(values):
   refresher.refresh_daemon.add_task(admin)
 
 def create_user(values):
-  global service
+  global service, user
   username = values["-BDA_USER-"]
   password = values["-BDA_PASSWORD-"]
   user = bda_service.User(username, password)
@@ -244,6 +244,7 @@ def handler(event, values, window, get_timeseries_array):
     return True
 
   if event == "-LOG_IN_BDA-":
+    global user
     try:
       service.login_user(user)
       refresher.refresh_daemon.add_task(user)
@@ -293,11 +294,13 @@ def handler(event, values, window, get_timeseries_array):
     return True
 
   if event == "-TRAIN_MKO-":
+    global service, user
     if user is None:
       return True
     model_name = values['-MKOname-']
-    claim_check = bda_service.create_mko(service, user, model_name)
-    mko = bda_service.redeem_claim_check(service, user, claim_check)
+    mko = bda_service.MKO(model_name, user, service)
+    claim_check = service.register_mko(mko)
+    mko = service.redeem_claim_check(user, claim_check)
     print("From UI: {}".format(mko))
 
     

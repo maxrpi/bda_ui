@@ -4,6 +4,7 @@ import PySimpleGUI as sg
 import refresher
 import smip
 import bdaTrain
+import bdaInfer
 import footer
 from support_functions.uifunctions import settings
 
@@ -14,6 +15,7 @@ refresher.refresh_daemon.run()
 tab_group = sg.TabGroup([[
   sg.Tab('SMIP', smip.layout),
   sg.Tab('BDA Training', bdaTrain.layout),
+  sg.Tab('BDA Infer', bdaInfer.layout),
   ]])
 
 layout = [[tab_group],[footer.layout]]
@@ -23,7 +25,7 @@ if __name__ == "__main__":
   window = sg.Window('BDA Service Interface App', layout, finalize=True)
   smip.assign_settings(settings['SMIP'], window)
   smip.set_bindings(window)
-  bdaTrain.assign_settings(settings['BDA'], window)
+  bdaTrain.assign_settings(settings['BDAtrain'], window)
   bdaTrain.set_bindings(window)
 
   while True:
