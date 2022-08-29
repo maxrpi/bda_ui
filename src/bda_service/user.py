@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 import requests
 import json
 import jwt
-from bda_service import BDAService as BDAservice
 
 class User(object):
   def __init__(self, username, password, email=""):
@@ -83,7 +82,7 @@ class User(object):
   def auth_expiration(self):
     return datetime.fromtimestamp(self._auth_dict.get('expiration_date')).strftime("%m/%d/%Y, %H:%M:%S")
 
-  def set_server(self, server: BDAservice):
+  def set_server(self, server):
     self._server = server
 
   def due(self) -> bool:
@@ -96,3 +95,6 @@ class User(object):
   def refresh(self, forced=False):
     if self.due() or forced == True:
       self._server.refresh_token(self)
+
+  def complete(self):
+    return False

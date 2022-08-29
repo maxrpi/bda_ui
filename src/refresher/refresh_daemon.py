@@ -3,7 +3,7 @@ import time
 
 class RefreshDaemon(object):
   def __init__(self, interval):
-    self._th =  None
+    self._th = threading.Thread(target=self.loop, daemon=True)
     self._interval = interval
     self._locked = False
     self.todo = set()
@@ -17,12 +17,13 @@ class RefreshDaemon(object):
 
   def check_items(self):
     self._locked = True
-    for item in self.todo:
+    for item in list(self.todo):
       item.refresh()
+      if item.complete:
+        self.todo.remove(item)
     self._locked = False
 
   def run(self):
-    self._th = threading.Thread(target=self.loop, daemon=True)
     self._th.start()
 
   def loop(self):
