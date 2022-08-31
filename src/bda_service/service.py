@@ -118,6 +118,9 @@ class BDAService(object):
     data['model_name'] = mko.name
     data = json.dumps({'data' : data})
     response = requests.post(url, headers=mko.user.headers, data=data)
+    if response.status_code != 200:
+      mko.set_unqueue()
+      raise Exception("Could not register MKO {}".format(mko.name))
     claim_check = json.loads(response.content)['claim_check']
     mko._inprocess = True
     mko.set_progress(0.0)
@@ -155,7 +158,12 @@ class BDAService(object):
       
       try:
         progress = self.get_claim_check_status(mko.user, mko.claim_check)
+        mko.reset_error_counter()
       except:
+        mko.increment_error_counter()
+        if mko.too_many_errors:
+          statusbar.update("Too many errors, bailing on MKO '{}'".format(mko.name))
+          mko.set_unqueue()
         return
 
       mko.set_progress(progress)
@@ -172,12 +180,15 @@ class BDAService(object):
         return
 
     if mko.auto_progress and not mko.inprocess:
-      if mko.stage == 0:
-        claim_check = self.register_mko(mko)
-        mko.set_claim_check(claim_check)
-      if mko.stage == 1:
-        claim_check = self.attach_data_to_mko(mko)
-        mko.set_claim_check(claim_check)
-      elif mko.stage == 2:
-        claim_check = self.train_mko(mko)
-        mko.set_claim_check(claim_check)
+      try:
+        if mko.stage == 0:
+          claim_check = self.register_mko(mko)
+          mko.set_claim_check(claim_check)
+        if mko.stage == 1:
+          claim_check = self.attach_data_to_mko(mko)
+          mko.set_claim_check(claim_check)
+        elif mko.stage == 2:
+          claim_check = self.train_mko(mko)
+          mko.set_claim_check(claim_check)
+      except Exception as err:
+        statusbar.update(err)

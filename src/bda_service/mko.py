@@ -21,7 +21,8 @@ class MKO(object):
     self._inprocess : bool = False
     self._progress : float = 0.0
     self._auto_progress = auto_progress
-    self._complete = False
+    self._unqueue = False
+    self._error_count = 0
 
   @property
   def name(self) -> str:
@@ -102,6 +103,16 @@ class MKO(object):
     return self._stage == 3
 
   @property
+  def too_many_errors(self):
+    return self._error_count > 10
+
+  def increment_error_counter(self):
+    self._error_count += 1
+
+  def reset_error_counter(self, count=0):
+    self._error_count = count
+
+  @property
   def claim_check(self):
     return self._claim_check
 
@@ -148,12 +159,12 @@ class MKO(object):
   def auto_progress(self):
     return self._auto_progress
 
-  def set_complete(self, state=True):
-    self._complete = state
+  def set_unqueue(self, state=True):
+    self._unqueue = state
 
   @property
-  def complete(self):
-    return self._complete
+  def unqueue(self):
+    return self._unqueue
 
   """ Don't use. Breaks model for direction of information flow"""
   def redeem(self):

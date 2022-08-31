@@ -18,9 +18,12 @@ class RefreshDaemon(object):
   def check_items(self):
     self._locked = True
     for item in list(self.todo):
-      item.refresh()
-      if item.complete:
-        self.todo.remove(item)
+      try:
+        item.refresh()
+        if item.unqueue:
+          self.todo.remove(item)
+      except Exception as err:
+        print(err)
     self._locked = False
 
   def run(self):

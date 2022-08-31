@@ -96,5 +96,5 @@ class User(object):
     if self.due() or forced == True:
       self._server.refresh_token(self)
 
-  def complete(self):
+  def unqueue(self):
     return False

@@ -75,7 +75,7 @@ class Element(object):
     self._refresh_function()
 
   @property
-  def complete(self):
+  def unqueue(self):
     return False
     
 pending_table = Element()
@@ -115,7 +115,10 @@ def update_pending_table(window):
     if mko.ready and mko not in ready_mkos:
       pending_mkos.remove(mko_name)
       ready_mkos.append(mko_name)
-      mko.set_complete()
+      mko.set_unqueue()
+      continue
+    if mko.unqueue:
+      pending_mkos.remove(mko_name)
       continue
     x = int(10 * mko.progress)
     progress_string = "*" * x + "-" * (10-x)
