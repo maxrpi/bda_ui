@@ -1,11 +1,13 @@
-from turtle import pen
+from pathlib import Path
 import PySimpleGUI as sg
 import bda_service
 import refresher
+from footer import statusbar
 
 known_mkos = {}
 ready_mkos = []
 pending_mkos = []
+filecounter = 0
 smip_auth = {}
 my_settings_copy = {}
 mko_table = [[]]
@@ -20,10 +22,26 @@ layout = [
   ],
   [
     sg.Listbox([],
-      size=(14,8),
+      size=(12,10),
       select_mode="LISTBOX_SELECT_MODE_SINGLE",
       key="-READY_MKOS-"
       ),
+    sg.Column([
+      [
+      sg.In("", visible=False, enable_events=True, key="-LOAD_MKO_FILENAME-"),
+      sg.FileBrowse("Load MKO",
+        file_types=[('MKO','*.mko')],
+        key='-DOWNLOAD_MKO-',
+        enable_events=True)
+      ],
+      [
+      sg.In("", visible=False, enable_events=True, key="-SAVE_MKO_FILENAME-"),
+      sg.SaveAs("Save MKO",
+        default_extension=".mko", file_types=[('MKO','*.mko')],
+        key='-SAVE_MKO-',
+        enable_events=True)
+      ],
+    ]),
     sg.ButtonMenu("Analysis Types",
       menu_def=['Unused', ['time predictor', 'integrator', 'sampler', 'plot']],
       key="-ANALYSIS_TYPE-"),
@@ -32,14 +50,14 @@ layout = [
   [
     sg.Table(values=mko_table,
       headings=["MKO", "Stage" ,"Progress"],
-      col_widths = [10, 6, 14],
+      col_widths = [12, 5, 11],
       auto_size_columns=False,
       justification='center',
       background_color="white",
       text_color="black",
       key="-PENDING_MKOS-",
       display_row_numbers=False,
-      num_rows=9,
+      num_rows=5,
       expand_x=False,
       vertical_scroll_only=True
       ),
@@ -92,17 +110,51 @@ def add_mko(mko, window):
 
 def update_pending_table(window):
   global pending_mkos, known_mkos, progress_bars
-  for pending_mko in pending_mkos:
-    x = int(10 * known_mkos[pending_mko].progress)
+  for mko_name in list(pending_mkos):
+    mko = known_mkos[mko_name]
+    if mko.ready and mko not in ready_mkos:
+      pending_mkos.remove(mko_name)
+      ready_mkos.append(mko_name)
+      mko.set_complete()
+      continue
+    x = int(10 * mko.progress)
     progress_string = "*" * x + "-" * (10-x)
-    progress_bars[pending_mko] = progress_string
+    progress_bars[mko_name] = progress_string
 
   pending_table = [ [name, known_mkos[name].stage, progress_bars[name] ] for name in pending_mkos]
 
   window['-PENDING_MKOS-'].update(values=pending_table )
+  window['-READY_MKOS-'].update(values=ready_mkos )
   
   
   
 def handler(event, values, window):
   global pending_mkos, ready_mkos, known_mkos
+  global filecounter
+
+  if event == "-SAVE_MKO_FILENAME-":
+    filename = values['-SAVE_MKO_FILENAME-']
+    ready_index = window['-READY_MKOS-'].get_indexes()[0]
+    mko = known_mkos[ready_mkos[ready_index]]
+    mko.save_to_file(filename)
+    return True
+
+
+  if event == "-LOAD_MKO_FILENAME-":
+    if bda_service.bda_service == None:
+      statusbar.update("Cannot load MKO into service: not logged in.")
+      return True
+    filename = values['-LOAD_MKO_FILENAME-']
+    name = Path(filename).stem
+    if name in known_mkos:
+      filecounter += 1
+      name = name + "({})".format(filecounter)
+    mko = bda_service.MKO(name, bda_service.bda_service.current_user, bda_service)
+    
+    known_mkos[name] = mko
+    mko.load_from_file(filename)
+    ready_mkos.append(name)
+    window['-READY_MKOS-'].update(values=ready_mkos )
+    return True
+
   return False

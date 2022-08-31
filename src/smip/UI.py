@@ -4,6 +4,7 @@ import json
 import datetime
 import smip.graphQL
 import pyperclip
+from footer import statusbar
 top_text_width=16
 smip_token_expiration = "no token"
 attrib_description = ""
@@ -125,6 +126,8 @@ def handler(event, values, window, token_to_BDA, attrib_to_BDA):
       window['-SMIP_EXPIRES-'].update(smip_token_expiration)
       window['-SEND_TO_BDA-'].update(visible=True)
       window['-SEND_TO_CLIPBOARD-'].update(visible=True)
+      token_to_BDA(url, username, role, password, smip_token)
+      statusbar.update("TOKEN SENT TO BDA SIDE")
     except Exception as err:
       print(err)
     return True
@@ -189,6 +192,7 @@ def handler(event, values, window, token_to_BDA, attrib_to_BDA):
   if event == "-SEND_TO_BDA-":
     try:
       token_to_BDA(url, username, role, password, smip_token)
+      statusbar.update("TOKEN SENT TO BDA SIDE")
     except Exception as err:
       print(err)
     return True
@@ -196,6 +200,7 @@ def handler(event, values, window, token_to_BDA, attrib_to_BDA):
   if event == "-SEND_TO_CLIPBOARD-":
     try:
       pyperclip.copy(smip_token)
+      statusbar.update("TOKEN COPIED TO CLIPBOARD")
     except Exception as err:
       print(err)
     return True

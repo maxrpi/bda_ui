@@ -27,6 +27,7 @@ if __name__ == "__main__":
   smip.set_bindings(window)
   bdaTrain.assign_settings(settings['BDAtrain'], window)
   bdaTrain.set_bindings(window)
+  footer.statusbar.register_statusbar(window)
 
   while True:
     event, values = window.read()

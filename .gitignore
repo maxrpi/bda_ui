@@ -135,3 +135,6 @@ src/bar.txt
 #My own
 .vscode/*
 */.vscode/*
+*.mko
+*.txt
+*.csv

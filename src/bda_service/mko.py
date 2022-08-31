@@ -21,6 +21,7 @@ class MKO(object):
     self._inprocess : bool = False
     self._progress : float = 0.0
     self._auto_progress = auto_progress
+    self._complete = False
 
   @property
   def name(self) -> str:
@@ -123,6 +124,16 @@ class MKO(object):
   def contents(self):
     return self._contents
 
+  def save_to_file(self, filename):
+    with open(filename, "w", encoding="utf-8") as fd:
+      fd.write(self.contents)
+    return
+
+  def load_from_file(self, filename):
+    with open(filename, "r", encoding="utf-8") as fd:
+      self.set_contents(fd.read())
+    return
+
   def due(self, padding=0, forced=False):
     if forced or self._eta + timedelta(seconds=padding) < datetime.now():
       return True
@@ -137,9 +148,12 @@ class MKO(object):
   def auto_progress(self):
     return self._auto_progress
 
+  def set_complete(self, state=True):
+    self._complete = state
+
   @property
   def complete(self):
-    return self.ready
+    return self._complete
 
   """ Don't use. Breaks model for direction of information flow"""
   def redeem(self):

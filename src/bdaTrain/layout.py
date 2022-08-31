@@ -27,9 +27,6 @@ layout = [
     sg.HorizontalSeparator()
   ],
   [
-    sg.T("CREATE MODEL")
-  ],
-  [
     sg.Column(
       [
         [ sg.T("Available Attributes")],
@@ -65,34 +62,27 @@ layout = [
     sg.Column(
       [
         [ sg.T("Start Time"),
-          sg.In("start time", size=(20, 1), key="-START_TIME-"),
+          sg.In("start time", size=(20, 1), key="-START_TIME-", text_color="black"),
           sg.B("Parse Start Time", enable_events=True, key="-PARSE_START-")
         ],
         [ sg.T("End Time"),
-          sg.In("end time", size=(20, 1), key="-END_TIME-"),
+          sg.In("end time", size=(20, 1), key="-END_TIME-", text_color="black"),
           sg.B("Parse End Time", enable_events=True, key="-PARSE_END-")],
         [sg.B("Set maximum range", enable_events=True, key="-SET_MAX_RANGE-")],
-        [sg.T("Number of Samples"), sg.In("0", size=(6,1), key="-NUMBER_SAMPLES-")],
-        [sg.T("Sample period in seconds"), sg.In("0", size=(6,1), key="-SAMPLE_PERIOD-")]
+        [sg.T("Number of Samples"), sg.In("100", size=(6,1), key="-NUMBER_SAMPLES-"),
+        sg.T("OR   Sample period in seconds"), sg.In("0", size=(6,1), key="-SAMPLE_PERIOD-")]
       ]
     )
   ],
   [
-    sg.T("Auth to send"),
-    sg.Checkbox("SMIP token", key="-BOOL_SEND_TOKEN-"),
-    sg.Checkbox("Username/Password", key="-BOOL_SEND_USERPASS-")
-  ],
-  [
+    sg.T("Name for MKO"),
+    sg.In("name",size=(12,1),  key="-MKOname-"),
+    sg.B("Request MKO training", enable_events=True, key="-TRAIN_MKO-"),
     sg.In("", visible=False, enable_events=True, key="-DOWNLOAD_REQUEST_FILENAME-"),
     sg.SaveAs("Download Request Data",
       default_extension=".txt", file_types=[('Text','*.txt')],
       key='-DOWNLOAD_REQUEST_DATA-',
       enable_events=True)
-  ],
-  [
-    sg.T("Name for MKO"),
-    sg.In("name", key="-MKOname-"),
-    sg.B("Request MKO training", enable_events=True, key="-TRAIN_MKO-")
   ],
   [
     sg.T("Error Output", visible=False, key="-ERRORREPORT1-"),

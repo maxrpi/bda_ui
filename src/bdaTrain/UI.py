@@ -5,6 +5,7 @@ import datetime
 import bda_service
 import refresher
 from bdaTrain.layout import layout
+from footer import statusbar
 
 known_attributes = {}
 avail_keys = list(known_attributes.keys())
@@ -22,10 +23,16 @@ def assign_settings(settings, window):
   if settings['username'] is not None: window['-BDA_USER-'].update(settings['username']) 
   if settings['password'] is not None: window['-BDA_PASSWORD-'].update(settings['password']) 
   if settings['server_secret'] is not None: window['-SERVER_SECRET-'].update(settings['server_secret']) 
+  if settings['start_time'] is not None: window['-START_TIME-'].update(settings['start_time']) 
+  if settings['end_time'] is not None: window['-END_TIME-'].update(settings['end_time']) 
+  if settings['sample_period'] is not None: window['-SAMPLE_PERIOD-'].update(settings['sample_period']) 
+  if settings['number_samples'] is not None: window['-NUMBER_SAMPLES-'].update(settings['number_samples']) 
 
 def set_bindings(window):
   window['-PARSE_START-'].bind('<KeyPress-Return>','RETURN')
   window['-PARSE_END-'].bind('<KeyPress-Return>','RETURN')
+  window['-SAMPLE_PERIOD-'].bind('<KeyPress-Return>','RETURN')
+  window['-NUMBER_SAMPLES-'].bind('<KeyPress-Return>','RETURN')
 
 def set_smip_auth(url, username, role, password, token):
   global smip_auth
@@ -56,7 +63,6 @@ def avail_to_inputs(values, window):
   global known_attributes
   global avail_keys
   global inputs_keys
-  selected_keys = values['-ATTRIBUTE_LIST-']
   selected_indexes = window['-ATTRIBUTE_LIST-'].get_indexes()
   for index in selected_indexes:
     inputs_keys.append(avail_keys.pop(index))
@@ -100,7 +106,7 @@ def parseTime(key, dateStr, window):
   except dateutil.parser.ParserError as err:
     window[key].update(select=True)
     return None
-  window[key].update(value=dateObj.strftime("%Y-%m-%dT%H:%M:%SZ"))
+  window[key].update(value=dateObj.strftime("%Y-%m-%dT%H:%M:%SZ"), text_color="blue")
   return dateObj
   
 def create_attrib_id_list():
@@ -109,6 +115,26 @@ def create_attrib_id_list():
   attrib_id_list_string = ",".join(attrib_id_list)
   return attrib_id_list
 
+def samples_and_periods(samples, period, priority="s"):
+  s = int(samples)
+  p = float(period)
+  if endTimeObj == None or startTimeObj == None:
+    return s, p
+  interval = endTimeObj.timestamp() - startTimeObj.timestamp()
+  if p == 0:
+    if s == 0:
+      s = 10
+    p = interval / float(s)
+  elif s == 0:
+    s = interval / p
+  elif priority == "p":
+    s = int(interval / p)
+    p = interval / float(s)
+  else:
+    p = interval / float(s)
+
+  return s, p
+
 
 def init_server(values):
   global service
@@ -116,6 +142,7 @@ def init_server(values):
   secret = values["-SERVER_SECRET-"]
   admin = bda_service.User("admin", "adminpassword")
   service = bda_service.BDAService(service_url, secret, admin)
+  bda_service.bda_service = service
   service.initialize_server()
   service.login_user(admin)
   refresher.refresh_daemon.add_task(admin)
@@ -147,6 +174,7 @@ def handler(event, values, window, get_timeseries_array, add_mko_to_infer):
   if event == "-LOG_IN_BDA-":
     try:
       service.login_user(user)
+      service.set_current_user(user)
       refresher.refresh_daemon.add_task(user)
       window['-BDA_EXPIRES-'].update(user.auth_expiration)
     except Exception as err:
@@ -168,14 +196,45 @@ def handler(event, values, window, get_timeseries_array, add_mko_to_infer):
   if event == "-PARSE_START-" or event == "START_TIME" + "RETURN":
     key = "-START_TIME-"
     startTimeObj = parseTime(key, values[key], window)
+    my_settings_copy["start_time"] = values[key]
+    s, p = samples_and_periods(values['-NUMBER_SAMPLES-'], values['-SAMPLE_PERIOD-'])
+    window['-NUMBER_SAMPLES-'].update(str(s))
+    window['-SAMPLE_PERIOD-'].update(str(p))
+    my_settings_copy['number_samples'] = s
+    my_settings_copy['period'] = p
     return True
   if event == "-PARSE_END-" or event == "END_TIME" + "RETURN":
     key = "-END_TIME-"
     endTimeObj = parseTime(key, values[key], window)
+    my_settings_copy["end_time"] = values[key]
+    s, p = samples_and_periods(values['-NUMBER_SAMPLES-'], values['-SAMPLE_PERIOD-'])
+    window['-NUMBER_SAMPLES-'].update(str(s))
+    window['-SAMPLE_PERIOD-'].update(str(p))
+    my_settings_copy['number_samples'] = s
+    my_settings_copy['period'] = p
     return True
   if event == "-SET_MAX_RANGE-":
     startTimeObj = parseTime("-START_TIME-", "1900-01-01", window)
     endTimeObj = parseTime("-END_TIME-", "2100-01-01", window)
+    s, p = samples_and_periods(values['-NUMBER_SAMPLES-'], values['-SAMPLE_PERIOD-'])
+    window['-NUMBER_SAMPLES-'].update(str(s))
+    window['-SAMPLE_PERIOD-'].update(str(p))
+    my_settings_copy['number_samples'] = s
+    my_settings_copy['period'] = p
+    return True
+  if event == "-NUMBER_SAMPLES-" + "RETURN":
+    s, p = samples_and_periods(values['-NUMBER_SAMPLES-'], values['-SAMPLE_PERIOD-'], priority="s")
+    window['-NUMBER_SAMPLES-'].update(str(s))
+    window['-SAMPLE_PERIOD-'].update(str(p))
+    my_settings_copy['number_samples'] = s
+    my_settings_copy['period'] = p
+    return True
+  if event == "-SAMPLE_PERIOD-" + "RETURN":
+    s, p = samples_and_periods(values['-NUMBER_SAMPLES-'], values['-SAMPLE_PERIOD-'], priority="p")
+    window['-NUMBER_SAMPLES-'].update(str(s))
+    window['-SAMPLE_PERIOD-'].update(str(p))
+    my_settings_copy['number_samples'] = s
+    my_settings_copy['period'] = p
     return True
 
   if event == "-DOWNLOAD_REQUEST_FILENAME-":
@@ -185,7 +244,7 @@ def handler(event, values, window, get_timeseries_array, add_mko_to_infer):
       startTimeObj.strftime("%Y-%m-%d %H:%M:%S+00"),
       endTimeObj.strftime("%Y-%m-%d %H:%M:%S+00"),
       values['-NUMBER_SAMPLES-'],
-      datetime.timedelta(seconds=int(values['-SAMPLE_PERIOD-'])))
+      datetime.timedelta(seconds=int(float(values['-SAMPLE_PERIOD-']))))
     
     with open(filename, "w") as fd:
       fd.write(df.to_csv(index=False, date_format="%Y-%m-%d %H:%M:%S+00"))
