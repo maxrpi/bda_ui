@@ -11,6 +11,7 @@ class User(object):
     self._auth_token = ""
     self._refresh_token = ""
     self.refresh_lifetime = 600
+    self._logged_in = False
 
   @property
   def username(self) -> str:
@@ -87,14 +88,24 @@ class User(object):
 
   def due(self) -> bool:
     now = datetime.now()
-    if now > self._refresh_time:
-      return True
-    else:
-      return False
+    try:
+      if now > self._refresh_time:
+        return True
+      else:
+        return False
+    except Exception as err:
+      print("Error for user {}: {}".format(self.username, err))
 
   def refresh(self, forced=False):
     if self.due() or forced == True:
-      self._server.refresh_token(self)
+      self._server.refresh_user_token(self)
+
+  @property
+  def logged_in(self):
+    return self._logged_in
+
+  def set_logged_in(self, state):
+    self._logged_in = state
 
   def unqueue(self):
-    return False
+    return self.logged_in

@@ -1,12 +1,30 @@
 import threading
 import time
 
+class Element(object):
+  def __init__(self):
+    pass
+
+  def set_refresh_function(self, refresh_function):
+    self._refresh_function = refresh_function
+  
+  def refresh(self):
+    self._refresh_function()
+
+  @property
+  def unqueue(self):
+    return False
+
 class RefreshDaemon(object):
-  def __init__(self, interval):
+  def __init__(self) -> None:
+    self._initialized = False
+
+  def initialize(self, interval):
     self._th = threading.Thread(target=self.loop, daemon=True)
     self._interval = interval
     self._locked = False
     self.todo = set()
+    self._initialized = True
 
   def add_task(self, item):
     while self._locked:
@@ -19,22 +37,31 @@ class RefreshDaemon(object):
     self._locked = True
     for item in list(self.todo):
       try:
-        item.refresh()
         if item.unqueue:
           self.todo.remove(item)
+        item.refresh()
       except Exception as err:
         print(err)
     self._locked = False
 
   def run(self):
     self._th.start()
+    self._running = True
+    self._paused = False
 
   def loop(self):
     self.running = True
     while self.running == True:
-      self.check_items()
+      if not self._paused:
+        self.check_items()
       time.sleep(self._interval)
   
+  def pause(self):
+    self._paused = True
+
+  def unpause(self):
+    self._paused = False
+
   def stop(self):
-    self.running = True
+    self.running = False
     self._th.join()

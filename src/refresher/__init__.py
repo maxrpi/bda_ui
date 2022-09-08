@@ -1,2 +1,2 @@
-from refresher.refresh_daemon import RefreshDaemon
-refresh_daemon = RefreshDaemon(10)
+from refresher.refresh_daemon import RefreshDaemon, Element
+refresh_daemon = RefreshDaemon()

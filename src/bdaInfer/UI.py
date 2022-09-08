@@ -1,163 +1,195 @@
 from pathlib import Path
 import PySimpleGUI as sg
 import bda_service
+from bda_service.analyses import analysis_types, Analysis
+from bdaInfer.layout import layout
 import refresher
 from footer import statusbar
+from bdaInfer.analysisUIs import AnalysisUI
+from bdaInfer.analysisUIs import UIs as analysisUIs
 
-known_mkos = {}
-ready_mkos = []
-pending_mkos = []
-filecounter = 0
-smip_auth = {}
-my_settings_copy = {}
-mko_table = [[]]
-progress_bars = {}
+class bi():
+  settings = {}
+  smip_auth = {}
 
-layout = [
-  [
-    sg.T("CREATE ANALYSIS")
-  ],
-  [ 
-    sg.T("PENDING MKOs")
-  ],
-  [
-    sg.Listbox([],
-      size=(12,10),
-      select_mode="LISTBOX_SELECT_MODE_SINGLE",
-      key="-READY_MKOS-"
-      ),
-    sg.Column([
-      [
-      sg.In("", visible=False, enable_events=True, key="-LOAD_MKO_FILENAME-"),
-      sg.FileBrowse("Load MKO",
-        file_types=[('MKO','*.mko')],
-        key='-DOWNLOAD_MKO-',
-        enable_events=True)
-      ],
-      [
-      sg.In("", visible=False, enable_events=True, key="-SAVE_MKO_FILENAME-"),
-      sg.SaveAs("Save MKO",
-        default_extension=".mko", file_types=[('MKO','*.mko')],
-        key='-SAVE_MKO-',
-        enable_events=True)
-      ],
-    ]),
-    sg.ButtonMenu("Analysis Types",
-      menu_def=['Unused', ['time predictor', 'integrator', 'sampler', 'plot']],
-      key="-ANALYSIS_TYPE-"),
-    sg.Frame("Options", layout=[[]], size=(200,200)),
-  ],
-  [
-    sg.Table(values=mko_table,
-      headings=["MKO", "Stage" ,"Progress"],
-      col_widths = [12, 5, 11],
-      auto_size_columns=False,
-      justification='center',
-      background_color="white",
-      text_color="black",
-      key="-PENDING_MKOS-",
-      display_row_numbers=False,
-      num_rows=5,
-      expand_x=False,
-      vertical_scroll_only=True
-      ),
-  ]
-]
+  known_mkos = {}
+  ready_mkos = []
+  pending_mkos = []
+  pending_mko_table = refresher.Element()
+  mko_progress_bars = {}
 
-class Element(object):
-  def __init__(self):
-    pass
+  filecounter = 0
+  known_analyses = {}
+  ready_analyses = []
+  pending_analyses = []
+  pending_analyses_table = refresher.Element()
+  analyses_progress_bars = {}
+  current_analysis = list(analysisUIs.keys())[0]
+  options_UI = analysisUIs[current_analysis]
+  analysis_obj = analysis_types[current_analysis]
 
-  def set_refresh_function(self, refresh_function):
-    self._refresh_function = refresh_function
-  
-  def refresh(self):
-    self._refresh_function()
-
-  @property
-  def unqueue(self):
-    return False
-    
-pending_table = Element()
 
 def add_mko(mko, window):
-  global known_mkos
-  global ready_mkos
-  global pending_mkos
   
-  known_mkos[mko.name] = mko
-  if mko.name in pending_mkos:
-    pending_mkos.remove(mko.name)
-  elif mko.name in ready_mkos:
-    ready_mkos.remove(mko.name)
-  else:
-    pass
+  bi.known_mkos[mko.name] = mko
+  if mko.name in bi.pending_mkos:
+    bi.pending_mkos.remove(mko.name)
+  elif mko.name in bi.ready_mkos:
+    bi.ready_mkos.remove(mko.name)
+    
   if not mko.ready: 
-    pending_mkos.append(mko.name)
+    bi.pending_mkos.append(mko.name)
   else:
-    ready_mkos.append(mko.name)
+    bi.ready_mkos.append(mko.name)
   
-  window['-READY_MKOS-'].update(values=ready_mkos)
+  window['-READY_MKOS-'].update(values=bi.ready_mkos)
 
-  update_pending_table(window)
-
+  update_pending_mko_table(window)
   def make_refresh():
-    update_pending_table(window)
-  
-  pending_table.set_refresh_function(make_refresh)
-  refresher.refresh_daemon.add_task(pending_table)
+    update_pending_mko_table(window)
+  bi.pending_mko_table.set_refresh_function(make_refresh)
+  refresher.refresh_daemon.add_task(bi.pending_mko_table)
   
 
-def update_pending_table(window):
-  global pending_mkos, known_mkos, progress_bars
-  for mko_name in list(pending_mkos):
-    mko = known_mkos[mko_name]
-    if mko.ready and mko not in ready_mkos:
-      pending_mkos.remove(mko_name)
-      ready_mkos.append(mko_name)
+def update_pending_mko_table(window):
+  for mko_name in list(bi.pending_mkos):
+    mko = bi.known_mkos[mko_name]
+    if mko.ready and mko not in bi.ready_mkos:
+      bi.pending_mkos.remove(mko_name)
+      bi.ready_mkos.append(mko_name)
       mko.set_unqueue()
       continue
     if mko.unqueue:
-      pending_mkos.remove(mko_name)
+      bi.pending_mkos.remove(mko_name)
       continue
     x = int(10 * mko.progress)
     progress_string = "*" * x + "-" * (10-x)
-    progress_bars[mko_name] = progress_string
+    bi.mko_progress_bars[mko_name] = progress_string
 
-  pending_table = [ [name, known_mkos[name].stage, progress_bars[name] ] for name in pending_mkos]
+  pending_table = [
+    [name, bi.known_mkos[name].stage, bi.mko_progress_bars[name] ]
+    for name in bi.pending_mkos ]
 
   window['-PENDING_MKOS-'].update(values=pending_table )
-  window['-READY_MKOS-'].update(values=ready_mkos )
+  window['-READY_MKOS-'].update(values=bi.ready_mkos )
+
+def add_analysis(analysis, window):
   
+  bi.known_analyses[analysis.name] = analysis
+  if analysis.name in bi.pending_analyses:
+    bi.pending_analyses.remove(analysis.name)
+  elif analysis.name in bi.ready_analyses:
+    bi.ready_analyses.remove(analysis.name)
+    
+  if not analysis.ready: 
+    bi.pending_analyses.append(analysis.name)
+  else:
+    bi.ready_analyses.append(analysis.name)
   
+  window['-READY_ANALYSES-'].update(values=bi.ready_analyses)
+
+  update_pending_analyses_table(window)
+  def make_refresh():
+    update_pending_analyses_table(window)
+  bi.pending_analyses_table.set_refresh_function(make_refresh)
+  refresher.refresh_daemon.add_task(bi.pending_analyses_table)
+  
+
+def update_pending_analyses_table(window):
+  for analysis_name in list(bi.pending_analyses):
+    analysis = bi.known_analyses[analysis_name]
+    if analysis.ready and analysis not in bi.ready_analyses:
+      bi.pending_analyses.remove(analysis_name)
+      bi.ready_analyses.append(analysis_name)
+      analysis.set_unqueue()
+      continue
+    if analysis.unqueue:
+      bi.pending_analyses.remove(analysis_name)
+      continue
+    x = int(10 * analysis.progress)
+    progress_string = "*" * x + "-" * (10-x)
+    bi.mko_progress_bars[analysis_name] = progress_string
+
+  pending_table = [
+    [name, bi.known_analyses[name].stage, bi.analyses_progress_bars[name] ]
+    for name in bi.pending_analyses ]
+
+  window['-PENDING_ANALYSES-'].update(values=pending_table )
+  window['-READY_ANALYSES-'].update(values=bi.ready_analyses )
+  
+
+
   
 def handler(event, values, window):
-  global pending_mkos, ready_mkos, known_mkos
-  global filecounter
 
   if event == "-SAVE_MKO_FILENAME-":
+    selected_indices = window['-READY_MKOS-'].get_indexes()
+    if len(selected_indices) == 0:
+      statusbar.update("NO MKO SELECTED TO SAVE")
+      return True
     filename = values['-SAVE_MKO_FILENAME-']
-    ready_index = window['-READY_MKOS-'].get_indexes()[0]
-    mko = known_mkos[ready_mkos[ready_index]]
+    ready_index = selected_indices[0]
+    mko = bi.known_mkos[bi.ready_mkos[ready_index]]
     mko.save_to_file(filename)
     return True
 
 
   if event == "-LOAD_MKO_FILENAME-":
-    if bda_service.bda_service == None:
+    if bda_service.service == None:
       statusbar.update("Cannot load MKO into service: not logged in.")
       return True
     filename = values['-LOAD_MKO_FILENAME-']
     name = Path(filename).stem
-    if name in known_mkos:
-      filecounter += 1
-      name = name + "({})".format(filecounter)
-    mko = bda_service.MKO(name, bda_service.bda_service.current_user, bda_service)
-    
-    known_mkos[name] = mko
+    if name in bi.known_mkos:
+      bi.filecounter += 1
+      name = name + "({})".format(bi.filecounter)
+    mko = bda_service.MKO(name, bda_service.service.current_user, bda_service)
+    bi.known_mkos[name] = mko
     mko.load_from_file(filename)
-    ready_mkos.append(name)
-    window['-READY_MKOS-'].update(values=ready_mkos )
+    bi.ready_mkos.append(name)
+    window['-READY_MKOS-'].update(values=bi.ready_mkos )
+    return True
+  if event == "-UNQUEUE_MKOS-":
+    statusbar.update("Unqueuing all pending MKOs")
+    for mko_name in list(bi.pending_mkos):
+      mko = bi.known_mkos[mko_name]
+      mko.set_unqueue()
+      del bi.known_mkos[mko_name]
+      bi.pending_mkos.remove(mko_name)
+    update_pending_mko_table(window)
+    return True
+
+  if event == "-ANALYSIS_TABGR-":
+    bi.current_analysis = window[event].get()
+    bi.options_UI = analysisUIs[bi.current_analysis]
+    bi.analysis_obj = analysis_types[bi.current_analysis]
+    return True
+  
+  if event == bi.options_UI.go_tag:
+    selected_indices = window['-READY_MKOS-'].get_indexes()
+    if len(selected_indices) == 0:
+      statusbar.update("NO MKO SELECTED FOR ANALYSIS {}".format(bi.current_analysis))
+      return True
+    ready_index = selected_indices[0]
+    mko = bi.known_mkos[bi.ready_mkos[ready_index]]
+    analysis = bi.analysis_obj(bi.current_analysis, mko, bda_service.service, bi.options_UI.analysis_data)
+    bda_service.service.launch_analysis(analysis)
+    add_analysis(analysis, window)
+    return True
+
+  if event == "-DISPLAY_ANALYSIS-":
+    refresher.refresh_daemon.pause()
+    selected_indices = window['-READY_ANALYSES-'].get_indexes()
+    if len(selected_indices) == 0:
+      statusbar.update("NO ANALYSIS SELECTED TO DISPLAY")
+      return True
+    ready_index = selected_indices[0]
+    analysis = bi.known_analyses[bi.ready_analyses[ready_index]]
+    analysis.display_in_window()
+    refresher.refresh_daemon.unpause()
+    return True
+
+  if bi.options_UI.handler(event, values, window):
     return True
 
   return False

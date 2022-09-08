@@ -1,2 +1,2 @@
-from bda_service.service import BDAService, User, MKO
-bda_service = None
+from bda_service._service import BDAService, User, MKO
+service : BDAService = BDAService()

@@ -185,7 +185,11 @@ def handler(event, values, window, token_to_BDA, attrib_to_BDA):
     try:
       attrib_to_BDA(values['-ATTRIBUTE_ID-'], values['-ATTRIBUTE_NAME-'], window)
       window['-ATTRIBUTE_NAME-'].update(select=True)
+      statusbar.update("Send attrib {} to bda tab with name {}".
+        format(values['-ATTRIBUTE_ID-'], values['-ATTRIBUTE_NAME-']) )
     except Exception as err:
+      statusbar.update("Couldn't send attrib {} to bda tab".
+        format(values['-ATTRIBUTE_ID-']) )
       print(err)
     return True
 

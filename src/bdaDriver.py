@@ -10,6 +10,7 @@ import footer
 from support_functions.uifunctions import settings
 
 import refresher
+refresher.refresh_daemon.initialize(10)
 refresher.refresh_daemon.run()
 
 tab_group = sg.TabGroup([[

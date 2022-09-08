@@ -51,6 +51,9 @@ class MKO(object):
     self._dataspec =  {
       "x_tags" : [str(tag) for tag in self._inputs],
       "y_tags" : [str(tag) for tag in self._outputs],
+      "n_inputs": len(self._inputs),
+      "n_outputs": len(self._outputs),
+      "data_location": self.smip_auth['url'],
       "query_json": {
         "start_time": self._start_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "end_time" : self._end_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
