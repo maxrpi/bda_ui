@@ -15,12 +15,18 @@ class Histogram(Analysis):
   def query_data(self) -> dict:
     mko_data = self._mko.contents
     inputs = np.loadtxt(self._analysis_data['input_filename']).tolist()
-    n_samples = self._analysis_data['n_samples']
+    n_samples = self._analysis_data.get('n_samples', "0")
+    n_bins = self._analysis_data.get('n_bins', "0")
+    try: int(n_bins)
+    except: n_bins = 0
+    try: int(n_samples)
+    except: n_samples = 0
     
     return {
       "mko" : mko_data,
       "inputs": inputs,
-      "n_samples" : n_samples
+      "n_samples" : n_samples,
+      "n_bins" : n_bins,
     }
   
   def return_contents(self):
@@ -40,10 +46,13 @@ class Histogram(Analysis):
     window = sg.Window("SAMPLES",
       [
         [ sg.Text("SAMPLES:", enable_events=False), ],
-        [ sg.Image(key="-IMAGE_BOX-") ],
-        [ sg.B("EXIT", enable_events=True, key="-EXIT-") ],
+        [
+          sg.B("SAVE", enable_events=True, key="-SAVEAS-"), 
+          sg.B("EXIT", enable_events=True, key="-EXIT-")
+        ],
+        [ sg.Image(key="-IMAGE_BOX-", size=(500,500) ) ],
       ]
-    , finalize=True, size=(400,400))
+    , finalize=True, size=(510,600))
     
     image = self.return_contents_as_image()
     window['-IMAGE_BOX-'].update(data=image)

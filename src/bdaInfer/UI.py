@@ -172,7 +172,7 @@ def handler(event, values, window):
       return True
     ready_index = selected_indices[0]
     mko = bi.known_mkos[bi.ready_mkos[ready_index]]
-    analysis = bi.analysis_obj(bi.current_analysis, mko, bda_service.service, bi.options_UI.analysis_data)
+    analysis = bi.analysis_obj(bi.options_UI.name, mko, bda_service.service, bi.options_UI.analysis_data)
     bda_service.service.launch_analysis(analysis)
     add_analysis(analysis, window)
     refresher.refresh_daemon.add_task(analysis)

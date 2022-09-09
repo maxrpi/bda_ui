@@ -21,6 +21,7 @@ class Analysis(object):
     self._contents = None
     self._ready = False
     self._unqueue = False
+    self._error_counter = 0
     self._endpoint = NotImplemented
 
   ##### PURE VIRTUAL METHODS #####

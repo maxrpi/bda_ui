@@ -1,25 +1,23 @@
 import numpy as np
 import pickle
-from base64 import b64decode, b64encode
-import re
+from base64 import urlsafe_b64decode, urlsafe_b64encode
+from typing import Union
 
-def encode_base64(some_bytes):
-  return b64encode(some_bytes).decode('ascii')
+def encode_base64(data : Union[bytes, str]) -> str:
+  if isinstance(data, str):
+    return urlsafe_b64encode(data.encode("utf-8")).decode('ascii')
+  else:
+    return urlsafe_b64encode(data).decode('ascii')
 
-def decode_base64(data, altchars=b'+/'):
-  data = re.sub(rb'[^a-zA-Z0-9%s]+' % altchars, b'', data)  # normalize
-  missing_padding = len(data) % 4
-  if missing_padding:
-    data += b'='* (4 - missing_padding)
-  return b64decode(data, altchars)
+def decode_base64(b64_str : str) -> bytes:
+  return urlsafe_b64decode(b64_str)
+
+# return pickled version of datatype
+def b64encode_datatype(data) -> str:
+  return urlsafe_b64encode(
+    pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL)
+  ).decode('ascii')
 
 # return unpickled version of string
-def b64decode_array(string: str) -> np.ndarray:
-  return  pickle.loads(b64decode(string))
-
-
-# return pickled version of array
-def b64encode_array(array: np.ndarray) -> str:
-  return b64encode(
-    pickle.dumps(array, protocol=pickle.HIGHEST_PROTOCOL)
-  ).decode('ascii')
+def b64decode_datatype(string: str):
+  return  pickle.loads(urlsafe_b64decode(string))
