@@ -97,8 +97,8 @@ layout = [
     sg.Column([
       [
         sg.Table(values=[[]],
-          headings=["Analysis", "Type" ,"Progress"],
-          col_widths = [8, 4, 10],
+          headings=["Analysis", "Progress"],
+          col_widths = [8,  10],
           auto_size_columns=False,
           justification='center',
           background_color="white",

@@ -24,6 +24,7 @@ class RefreshDaemon(object):
     self._interval = interval
     self._locked = False
     self.todo = set()
+    self._paused = False
     self._initialized = True
 
   def add_task(self, item):

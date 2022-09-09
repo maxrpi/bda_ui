@@ -108,10 +108,10 @@ def update_pending_analyses_table(window):
       continue
     x = int(10 * analysis.progress)
     progress_string = "*" * x + "-" * (10-x)
-    bi.mko_progress_bars[analysis_name] = progress_string
+    bi.analyses_progress_bars[analysis_name] = progress_string
 
   pending_table = [
-    [name, bi.known_analyses[name].stage, bi.analyses_progress_bars[name] ]
+    [name, bi.analyses_progress_bars[name] ]
     for name in bi.pending_analyses ]
 
   window['-PENDING_ANALYSES-'].update(values=pending_table )
@@ -175,6 +175,7 @@ def handler(event, values, window):
     analysis = bi.analysis_obj(bi.current_analysis, mko, bda_service.service, bi.options_UI.analysis_data)
     bda_service.service.launch_analysis(analysis)
     add_analysis(analysis, window)
+    refresher.refresh_daemon.add_task(analysis)
     return True
 
   if event == "-DISPLAY_ANALYSIS-":
@@ -187,6 +188,16 @@ def handler(event, values, window):
     analysis = bi.known_analyses[bi.ready_analyses[ready_index]]
     analysis.display_in_window()
     refresher.refresh_daemon.unpause()
+    return True
+
+  if event == "-UNQUEUE_ANALYSES-":
+    statusbar.update("Unqueuing all pending analyses")
+    for analysis_name in list(bi.pending_analyses):
+      analysis = bi.known_analyses[analysis_name]
+      analysis.set_unqueue()
+      del bi.known_analyses[analysis_name]
+      bi.pending_analyses.remove(analysis_name)
+    update_pending_analyses_table(window)
     return True
 
   if bi.options_UI.handler(event, values, window):

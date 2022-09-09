@@ -20,6 +20,7 @@ class Analysis(object):
     self._service = service
     self._contents = None
     self._ready = False
+    self._unqueue = False
     self._endpoint = NotImplemented
 
   ##### PURE VIRTUAL METHODS #####
@@ -66,7 +67,7 @@ class Analysis(object):
   
   def refresh(self):
     if self._service is not None:
-      self._service.refresh_mko(self)
+      self._service.refresh_analysis(self)
 
   def set_unqueue(self, state=True):
     self._unqueue = state
@@ -77,7 +78,7 @@ class Analysis(object):
 
   @property
   def user(self):
-    return self._service.user
+    return self._service.current_user
 
   @property
   def claim_check(self):
@@ -105,3 +106,11 @@ class Analysis(object):
 
   def set_ready(self, state=True):
     self._ready = state
+
+  @property
+  def progress(self):
+    return self._progress
+
+  @property
+  def inprocess(self):
+    return self._inprocess
