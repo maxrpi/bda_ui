@@ -67,7 +67,7 @@ def get_equipment_description(url, token, attrib_id):
 
 
 def post_lot_series_id(url, token, attrib_id, filename, delete_all=False, replace_all=False):
-  table = pd.read_csv(filename, header=0).to_numpy()
+  table = pd.read_csv(filename, header=0)
   (start_time, end_time) = max_time_range()
   time_incr = timedelta(seconds=60)
   (first_time_index, _) = max_time_range(as_datetime=True)
@@ -158,21 +158,21 @@ def get_lot_series(url, token, attrib_id):
     else:
       raise(err)
   
-  table = smp_response['data']['attribute']['getTimeSeries']
-  ids = []
-  arrays = []
-  for row in table:
-    data = json.loads(row["objectvalue"])
-    ids.append(int(float(data["id"])))
-    array_string = data["data"].replace("[","").replace("]","")
-    array = (np.fromstring(array_string, sep=","))
-    arrays.append(array)
+  list_of_dicts = smp_response['data']['attribute']['getTimeSeries']
+  rows = []
+  for d in list_of_dicts:
+    json_string = d['objectvalue']
+    array_dict = json.loads(json_string)
+    rows.append(array_dict)
   
-  df = pd.DataFrame(arrays)
-  df["id"] = ids
+  df = pd.json_normalize(rows)
+  
   df.astype({'id': 'int32'}).dtypes
   cols = df.columns.tolist()
-  cols = cols[-1:] + cols[:-1]
+  idex = cols.index("id")
+  tmp = cols[0]
+  cols[0] = cols[idex]
+  cols[idex] = tmp
   df = df[cols]
   df.set_index("id")
   return df

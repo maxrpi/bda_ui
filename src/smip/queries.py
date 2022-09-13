@@ -91,7 +91,6 @@ get_lot_series = '''
         startTime: "{start_time}"
         endTime: "{end_time}"
       ) {{
-        ts
         objectvalue
       }}
     }}

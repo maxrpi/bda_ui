@@ -39,18 +39,16 @@ def standardize_timestamp(timestamp, unix_timestamp=False):
 def table_to_lotseries(timestamp_start, ts_increment, table, unix_timestamp=False):
   entries = []
   time = timestamp_start
-  for row in table:
-    entries.append(row_to_lot(time, row, unix_timestamp))
+  for i in range(table.shape[0]):
+    entries.append(row_to_lot(time, table.iloc[i], unix_timestamp))
     time = time + ts_increment
   return "\n".join(entries)
 
 
 def row_to_lot(timestamp, row, unix_timestamp):
   timestamp_str = standardize_timestamp(timestamp, unix_timestamp)
-  id = row[0]
-  array = ",".join([str(item) for item in row[1:]])
-  array_string = '"{{\\"id\\": \\"{}\\", \\"data\\": \\"[{}]\\"}}"'.format(id, array)
-  return f'''{{timestamp: \"{timestamp_str}\", status: \"0\", value: {array_string} }}'''
+  json_string = row.to_json().replace('"','\\"')
+  return f'''{{timestamp: "{timestamp_str}", status: "0", value: "{json_string}"}}'''
 
 
 def json_timeseries_to_table(jd):
