@@ -39,11 +39,13 @@ if __name__ == "__main__":
     try:
       if smip.handler(event, values, window,
           token_to_BDA=bdaTrain.set_smip_auth,
-          attrib_to_BDA=bdaTrain.add_attribute
+          ts_to_BDA=bdaTrain.add_timeseries,
+          ls_to_BDA=bdaTrain.add_lot_series,
           ):
         continue
       if bdaTrain.handler(event, values, window,
         get_timeseries_array=smip.get_timeseries_array,
+        get_lot_series=smip.get_lot_series,
         add_mko_to_infer=bdaInfer.add_mko
         ):
         continue

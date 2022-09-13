@@ -35,7 +35,7 @@ def set_bindings(window):
 
 
 
-def handler(event, values, window, token_to_BDA, attrib_to_BDA):
+def handler(event, values, window, token_to_BDA, ts_to_BDA, ls_to_BDA):
 
   global smip_token, url, username, role, password, attrib_id, data_type, my_settings_copy
   if event == "-GET_SMIP_TOKEN-" or event == "-SMIP_PASSWORD-" + "RETURN":
@@ -128,7 +128,16 @@ def handler(event, values, window, token_to_BDA, attrib_to_BDA):
 
   if event == "-ATTRIBUTE_TO_BDA-" or event == "-ATTRIBUTE_NAME-" + "RETURN":
     try:
-      attrib_to_BDA(values['-ATTRIBUTE_ID-'], values['-ATTRIBUTE_NAME-'], window)
+      attrib_name = values['-ATTRIBUTE_NAME-']
+      attrib_id = values['-ATTRIBUTE_ID-']
+      attrib_description = smip.graphQL.get_equipment_description(url, smip_token, attrib_id)
+      data_type = attrib_description['attribute']['dataType']
+      if data_type == "OBJECT":
+        df = smip.graphQL.get_lot_series(url, smip_token, attrib_id)
+        feature_list = df.columns.tolist()
+        ls_to_BDA(attrib_id, attrib_name, feature_list, window)
+      else:
+        ts_to_BDA(attrib_id,attrib_name, window)
       window['-ATTRIBUTE_NAME-'].update(select=True)
       statusbar.update("Send attrib {} to bda tab with name {}".
         format(values['-ATTRIBUTE_ID-'], values['-ATTRIBUTE_NAME-']) )

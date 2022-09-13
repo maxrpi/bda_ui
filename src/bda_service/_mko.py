@@ -10,12 +10,14 @@ class MKO(object):
               name : str,
               user,
               service,
+              series_type : str = "time",
               auto_progress : bool = True
               ) -> None:
 
     self._name : str = name
     self._user = user
     self._service = service
+    self._series_type = series_type
     self._dataspec = {}
     self._stage : int = 0
     self._inprocess : bool = False
@@ -32,37 +34,73 @@ class MKO(object):
   @property
   def user(self):
     return self._user
+  
+  @property
+  def lot_series(self):
+    return self._series_type.lower() == "lot"
 
-  def set_inputs_and_outputs(self, inputs, outputs, time_as_input=False):
+  @property
+  def timeseries(self):
+    return self._series_type.lower() == "time"
+
+  def set_inputs_and_outputs_ts(self, inputs, outputs, time_as_input=False):
+    assert(self.timeseries)
     self._inputs = inputs
     self._outputs = outputs
     self._time_as_input = time_as_input
+  
+  def set_inputs_and_outputs_ls(self, attrib_id, inputs, outputs):
+    assert(self.lot_series)
+    self._attrib_id = attrib_id
+    self._inputs = inputs
+    self._outputs = outputs
   
   def set_smip_auth(self, smip_auth):
     self._smip_auth = smip_auth
 
   def set_time_parameters( self, start_time : datetime, end_time : datetime, 
     period : int, max_samples : int=0):
-
+    assert(self.timeseries)
     self._start_time : datetime = start_time
     self._end_time : datetime = end_time
     self._period : int = period
     self._max_samples : int = max_samples
 
+  def set_lot_parameters( self, all_lots, start_lot="",  end_lot=""):
+    assert(self.lot_series)
+    self._all_lots = all_lots
+    self._start_lot =  start_lot,
+    self._end_lot = end_lot
+
+
   def generate_dataspec(self):
     self._dataspec =  {
-      "x_tags" : [str(tag) for tag in self._inputs],
-      "y_tags" : [str(tag) for tag in self._outputs],
-      "time_as_input" : self._time_as_input,
+      "series_type" : self._series_type,
+      "inputs" : [str(tag) for tag in self._inputs],
+      "outputs" : [str(tag) for tag in self._outputs],
       "data_location": self.smip_auth['url'],
-      "query_json": {
+      "query_json": {}
+    }
+    if self.lot_series:
+      self._dataspec['attrib_id'] = self._attrib_id
+      self._dataspec['query_json'].update({"all_lots" : self._all_lots })
+      if self._all_lots:
+        self._dataspec['query_json'].update({
+          "start_lot" : self._start_lot,
+          "end_lot" : self._end_lot
+          })
+    elif self.timeseries:
+      self._dataspec['time_as_input'] = self._time_as_input
+      self._dataspec['query_json'].update({
         "start_time": self._start_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "end_time" : self._end_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "period" : self._period,
         "max_samples" : self._max_samples
-      }
-    }
+        })
+    else:
+      raise Exception("This can't happen")
   
+
   @property
   def smip_auth(self):
     return self._smip_auth

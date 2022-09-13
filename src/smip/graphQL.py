@@ -144,7 +144,7 @@ def get_timeseries(url, token, attrib_id, start_time, end_time, max_samples):
   dataframe.rename(columns={"floatvalue": "{}".format(attrib_id)}, inplace=True)
   return dataframe
 
-def get_lot_series(url, token, attrib_id):
+def get_lot_series(url, token, attrib_id, all_lots=True, start_lot=-1, end_lot="99999999"):
 
   (start_time, end_time) = max_time_range()
   query_template = queries.get_lot_series
@@ -175,6 +175,15 @@ def get_lot_series(url, token, attrib_id):
   cols[idex] = tmp
   df = df[cols]
   df.set_index("id")
+
+  if not all_lots:
+    df.sort_index(inplace=True)
+    try:
+      start_lot = int(float(start_lot))
+      end_lot = int(float(end_lot))
+    except:
+      pass
+    df = df.loc[start_lot:end_lot]
   return df
 
 def get_raw_attribute_data( url, token, attrib_id, as_timestamp=True, strip_nan=False):
