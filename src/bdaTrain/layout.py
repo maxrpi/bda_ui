@@ -41,7 +41,8 @@ layout = [
         [ sg.B("<- INPUTS", enable_events=True, key="-RETURN_INPUT-") ],
         [ sg.HorizontalSeparator()],
         [ sg.B("OUTPUTS ->", enable_events=True, key="-OUTPUT_SEND-") ],
-        [ sg.B("<- OUTPUTS", enable_events=True, key="-RETURN_OUTPUT-") ]
+        [ sg.B("<- OUTPUTS", enable_events=True, key="-RETURN_OUTPUT-") ],
+        [ sg.Checkbox("Time as input:", default=False, enable_events=True, key="-TIME_AS_INPUT-")]
       ],
       vertical_alignment="center"
     ),
@@ -82,7 +83,8 @@ layout = [
     sg.SaveAs("Download Request Data",
       default_extension=".txt", file_types=[('Text','*.txt')],
       key='-DOWNLOAD_REQUEST_DATA-',
-      enable_events=True)
+      enable_events=True),
+    sg.Checkbox("Time as timestamp",key="-TIME_AS_TIMESTAMP-",enable_events=True),
   ],
   [
     sg.T("Error Output", visible=False, key="-ERRORREPORT1-"),

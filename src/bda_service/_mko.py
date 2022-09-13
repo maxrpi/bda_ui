@@ -23,6 +23,7 @@ class MKO(object):
     self._auto_progress = auto_progress
     self._unqueue = False
     self._error_count = 0
+    self._time_as_input = False
 
   @property
   def name(self) -> str:
@@ -32,9 +33,10 @@ class MKO(object):
   def user(self):
     return self._user
 
-  def set_inputs_and_outputs(self, inputs, outputs):
+  def set_inputs_and_outputs(self, inputs, outputs, time_as_input=False):
     self._inputs = inputs
     self._outputs = outputs
+    self._time_as_input = time_as_input
   
   def set_smip_auth(self, smip_auth):
     self._smip_auth = smip_auth
@@ -51,8 +53,7 @@ class MKO(object):
     self._dataspec =  {
       "x_tags" : [str(tag) for tag in self._inputs],
       "y_tags" : [str(tag) for tag in self._outputs],
-      "n_inputs": len(self._inputs),
-      "n_outputs": len(self._outputs),
+      "time_as_input" : self._time_as_input,
       "data_location": self.smip_auth['url'],
       "query_json": {
         "start_time": self._start_time.strftime("%Y-%m-%dT%H:%M:%SZ"),

@@ -53,6 +53,23 @@ update_timeseries = '''
   }}
   '''
 
+update_lot_series = '''
+  mutation lot_series_update {{
+    replaceTimeSeriesRange(
+      input: {{
+        attributeOrTagId: "{attrib_id}"
+        entries: [
+          {entries}
+        ]
+        startTime: "{start_time}"
+        endTime: "{end_time}"
+      }}
+    ) {{
+      json
+    }}
+  }}
+  '''
+
 get_timeseries = '''
   query query_num_{index} {{
     getRawHistoryDataWithSampling(
@@ -66,6 +83,20 @@ get_timeseries = '''
     }}
 }}
 '''
+
+get_lot_series = '''
+  query get_lot_data_{index} {{
+    attribute(id: "{attrib_id}") {{
+      getTimeSeries(
+        startTime: "{start_time}"
+        endTime: "{end_time}"
+      ) {{
+        ts
+        objectvalue
+      }}
+    }}
+  }}
+  '''
 
 get_raw_attribute_data = '''
   query firstTime {{

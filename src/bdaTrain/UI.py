@@ -235,6 +235,11 @@ def handler(event, values, window, get_timeseries_array, add_mko_to_infer):
       bt.endTimeObj.strftime("%Y-%m-%d %H:%M:%S+00"),
       values['-NUMBER_SAMPLES-'],
       datetime.timedelta(seconds=int(float(values['-SAMPLE_PERIOD-']))))
+    time_as_timestamp = window['-TIME_AS_TIMESTAMP-'].get()
+    df.dropna(inplace=True)
+    if time_as_timestamp:
+      df['ts'] = pd.to_datetime(df.ts)
+      df['ts'] = df.ts.astype('int64') //  10**9
     
     with open(filename, "w") as fd:
       fd.write(df.to_csv(index=False, date_format="%Y-%m-%d %H:%M:%S+00"))
@@ -249,7 +254,8 @@ def handler(event, values, window, get_timeseries_array, add_mko_to_infer):
     mko = bda_service.MKO(model_name, bt.user, bda_service.service, auto_progress=True)
     inputs = [str(bt.known_attributes[key]) for key in bt.inputs_keys]
     outputs = [str(bt.known_attributes[key]) for key in bt.outputs_keys]
-    mko.set_inputs_and_outputs(inputs, outputs)
+    time_as_input = window["-TIME_AS_INPUT-"].get()
+    mko.set_inputs_and_outputs(inputs, outputs, time_as_input)
     mko.set_time_parameters(
       bt.startTimeObj,
       bt.endTimeObj,
