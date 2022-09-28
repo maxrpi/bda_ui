@@ -1,5 +1,6 @@
 import threading
 import time
+import footer
 
 class Element(object):
   def __init__(self):
@@ -40,7 +41,9 @@ class RefreshDaemon(object):
       try:
         if item.unqueue:
           self.todo.remove(item)
-        item.refresh()
+          item.set_unqueue(False)
+        else:
+          item.refresh()
       except Exception as err:
         print(err)
     self._locked = False
@@ -54,6 +57,7 @@ class RefreshDaemon(object):
     self.running = True
     while self.running == True:
       if not self._paused:
+        footer.statusbar.pulse()
         self.check_items()
       time.sleep(self._interval)
   

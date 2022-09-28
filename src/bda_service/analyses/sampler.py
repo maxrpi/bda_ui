@@ -2,6 +2,8 @@ import PySimpleGUI as sg
 import numpy as np
 import json
 from io import StringIO
+import pandas as pd
+import support_functions.encodings as encodings
 
 from bda_service.analyses import Analysis
 
@@ -12,8 +14,13 @@ class Sampler(Analysis):
     self._direct_response = True
 
   def query_data(self) -> dict:
+    ''' Note that inputs ends up as list, not numpy.ndarray type '''
     mko_data = self._mko.contents
-    inputs = np.loadtxt(self._analysis_data['input_filename']).tolist()
+    input_df = pd.read_csv(self._analysis_data['input_filename'])
+    mapping =  dict(zip(input_df.columns, [ col.lstrip().rstrip() for col in input_df.columns]))
+    input_df = input_df.rename(columns=mapping)
+    cols = self._mko.dataspec['inputs']
+    inputs = input_df[cols].to_numpy().tolist()
     n_samples = self._analysis_data['n_samples']
     
     return {

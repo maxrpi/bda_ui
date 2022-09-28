@@ -20,7 +20,7 @@ class CloudplotUI(AnalysisUI):
     [
       sg.In("", visible=False, enable_events=True, key="-CLOUDPLOT_DATA_FILENAME-"),
       sg.FileBrowse("Load Inputs",
-        file_types=[('.txt','*.txt')],
+        file_types=[('.csv','*.csv'),('.txt','*.txt')],
         key='-LOAD_CLOUDPLOT_DATA-',
         enable_events=True)
     ],

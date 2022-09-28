@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
-import profile
+import copy
 import jwt
-import json
 
 class MKO(object):
 
@@ -19,6 +18,8 @@ class MKO(object):
     self._service = service
     self._series_type = series_type
     self._dataspec = {}
+    self._topology = []
+    self._hypers = {}
     self._stage : int = 0
     self._inprocess : bool = False
     self._progress : float = 0.0
@@ -26,6 +27,14 @@ class MKO(object):
     self._unqueue = False
     self._error_count = 0
     self._time_as_input = False
+    self._autocalibrate = False
+
+  def copy(self, name):
+    tmp = copy.deepcopy(self)
+    tmp._user = self._user
+    tmp._service = self._service
+    tmp._name = name
+    return tmp
 
   @property
   def name(self) -> str:
@@ -55,7 +64,17 @@ class MKO(object):
     self._inputs = inputs
     self._outputs = outputs
   
+  def set_topology(self, topology):
+    self._topology = topology
+
+  def set_hypers(self, hypers):
+    self._hypers = hypers
+  
+  def set_autocalibrate(self, autocalibrate=True):
+    self._autocalibrate = autocalibrate
+
   def set_smip_auth(self, smip_auth):
+    assert(len(smip_auth) > 0)
     self._smip_auth = smip_auth
 
   def set_time_parameters( self, start_time : datetime, end_time : datetime, 
@@ -69,8 +88,25 @@ class MKO(object):
   def set_lot_parameters( self, all_lots, start_lot="",  end_lot=""):
     assert(self.lot_series)
     self._all_lots = all_lots
-    self._start_lot =  start_lot,
+    self._start_lot = start_lot
     self._end_lot = end_lot
+
+  def incorporate_dataspec(self, data):
+    self._inputs = data['inputs']
+    self._outputs = data['outputs']
+    self._series_type = data['series_type']
+    if self._series_type == "lot":
+      self._attrib_id = data['query_json']['attrib_id']
+      self._all_lots = data['query_json']['all_lots']
+      self._start_lot = data['query_json']['start_lot']
+      self._end_lot = data['query_json']['end_lot']
+    else:
+      self._start_time = data['query_json']['start_time']
+      self._end_time = data['query_json']['end_time']
+      self._period = data['query_json']['period']
+      self._max_samples = data['query_json']['max_samples']
+    self._time_as_input = data['time_as_input']
+    self._smip_auth = {"url": data['data_location']}
 
 
   def generate_dataspec(self):
@@ -109,6 +145,18 @@ class MKO(object):
   def dataspec(self):
     self.generate_dataspec()
     return self._dataspec
+
+  @property
+  def topology(self):
+    return self._topology
+
+  @property
+  def hypers(self):
+    return self._hypers
+  
+  @property
+  def autocalibrate(self):
+    return self._autocalibrate
   
   def set_claim_check(self, claim_check):
     self._claim_check = claim_check
@@ -201,20 +249,12 @@ class MKO(object):
   def auto_progress(self):
     return self._auto_progress
 
+  def set_autoprogress(self, state=True):
+    self._auto_progress = state
+
   def set_unqueue(self, state=True):
     self._unqueue = state
 
   @property
   def unqueue(self):
     return self._unqueue
-
-  """ Don't use. Breaks model for direction of information flow"""
-  def redeem(self):
-    try:
-      data = self._service.redeem_claim_check(self._user, self._claim_check)
-      self._data = data
-      self._stage += 1
-      self._status = -1
-    except:
-      return
-  

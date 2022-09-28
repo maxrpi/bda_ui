@@ -1,9 +1,7 @@
 #bdaTrain/__init__.py
 from bdaTrain.UI import (
   layout,
+  initialize,
   handler, 
-  assign_settings, 
-  set_bindings,
-  add_timeseries, add_lot_series, 
-  set_smip_auth, 
+  add_mko_to_prepped as add_mko_to_train,
 )

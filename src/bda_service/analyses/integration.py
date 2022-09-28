@@ -1,16 +1,14 @@
 import PySimpleGUI as sg
 import numpy as np
-import json
 import pandas as pd
-from io import StringIO
 
 from support_functions import encodings
 from bda_service.analyses import Analysis
 
-class Histogram(Analysis):
+class Integration(Analysis):
   def __init__(self, name, mko, service, analysis_data) -> None:
-    super().__init__(name,"histogram", mko, service, analysis_data)
-    self._endpoint = "/Analyze/histogram"
+    super().__init__(name,"integration", mko, service, analysis_data)
+    self._endpoint = "/Analyze/integrate"
     self._direct_response = False
 
   def query_data(self) -> dict:
@@ -20,11 +18,12 @@ class Histogram(Analysis):
     input_df = input_df.rename(columns=mapping)
     cols = self._mko.dataspec['inputs']
     inputs = encodings.b64encode_datatype(input_df[cols].to_numpy())
-    #inputs = encodings.b64encode_datatype(np.loadtxt(self._analysis_data['input_filename'],delimiter=","))
+    table_df = pd.read_csv(self._analysis_data['function_filename'])
+    mapping =  dict(zip(table_df.columns, [ col.lstrip().rstrip() for col in table_df.columns]))
+    table_df = table_df.rename(columns=mapping)
+    cols = self._mko.dataspec['outputs'] + ['function']
+    table = encodings.b64encode_datatype(table_df[cols].to_numpy())
     n_samples = self._analysis_data.get('n_samples', "0")
-    n_bins = self._analysis_data.get('n_bins', "0")
-    try: int(n_bins)
-    except: n_bins = 0
     try: int(n_samples)
     except: n_samples = 0
     
@@ -32,36 +31,28 @@ class Histogram(Analysis):
       "mko" : mko_data,
       "inputs": inputs,
       "n_samples" : n_samples,
-      "n_bins" : n_bins,
+      "function" : table,
     }
   
-  def return_contents(self):
-    if not self.ready:
-      raise Exception("Not ready")
-    return self._contents
-    
-  
-  def return_contents_as_image(self):
+  def format_contents_as_string(self):
     if not self.ready:
       raise Exception("Not ready")
 
-    image = encodings.decode_base64(self.contents)
-    return image
+    string = self.contents
+
+    return string
 
   def display_in_window(self):
-    window = sg.Window("SAMPLES",
+    window = sg.Window("MKO",
       [
-        [ sg.Text("SAMPLES:", enable_events=False), ],
-        [
-          sg.B("SAVE", enable_events=True, key="-SAVEAS-"), 
-          sg.B("EXIT", enable_events=True, key="-EXIT-")
-        ],
-        [ sg.Image(key="-IMAGE_BOX-", size=(500,500) ) ],
+        [ sg.Text("Integral:", enable_events=False), ],
+        [ sg.Output(size=(250,300), key="-OUTPUT_BOX-") ],
+        [ sg.B("EXIT", enable_events=True, key="-EXIT-") ],
       ]
-    , finalize=True, size=(510,600))
+    , finalize=True, size=(400,400))
     
-    image = self.return_contents_as_image()
-    window['-IMAGE_BOX-'].update(data=image)
+    string = self.format_contents_as_string()
+    window['-OUTPUT_BOX-'].update(string)
 
     while True:
       event, values = window.read()

@@ -21,7 +21,7 @@ class SamplerUI(AnalysisUI):
     [
       sg.In("", visible=False, enable_events=True, key="-SAMPLER_INPUT_FILENAME-"),
       sg.FileBrowse("Load Inputs",
-        file_types=[('.txt','*.txt')],
+        file_types=[('.csv','*.csv'),('.txt','*.txt')],
         key='-LOAD_SAMPLER_INPUTS-',
         enable_events=True)
     ],

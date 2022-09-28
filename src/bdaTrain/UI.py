@@ -2,41 +2,33 @@ import PySimpleGUI as sg
 import pandas as pd
 import dateutil.parser
 import datetime
+from pathlib import Path
 import bda_service
 import refresher
-from bdaTrain.layout import layout
+from bdaTrain.layout import layout, number_of_layers, layer_keys
+import bdaTrain.curator as curator
 from footer import statusbar
 
-class ts():
-  known_features = {}
-  avail_keys = list(known_features.keys())
-  inputs_keys = []
-  outputs_keys = []
-  prefix = "TS"
-  startTimeObj : datetime.datetime = None
-  endTimeObj : datetime.datetime = None
-class ls():
-  feature_container_attrib = -1
-  feature_container_name = ""
-  all_lots = True
-  known_features = {}
-  avail_keys = list(known_features.keys())
-  inputs_keys = []
-  outputs_keys = []
-  prefix = "LS"
-  start_key = None
-  end_key = None
 class bt():
-  smip_auth = {}
-  user : bda_service.User = None
   settings = {}
 
-def assign_settings(my_settings, window):
-  bt.settings = my_settings
-  if bt.settings['url'] is not None: window['-BDA_URL-'].update(bt.settings['url']) 
-  if bt.settings['username'] is not None: window['-BDA_USER-'].update(bt.settings['username']) 
-  if bt.settings['password'] is not None: window['-BDA_PASSWORD-'].update(bt.settings['password']) 
-  if bt.settings['server_secret'] is not None: window['-SERVER_SECRET-'].update(bt.settings['server_secret']) 
+  known_mkos : dict[str, bda_service.MKO] = {}
+  prepped_mkos : dict[str, bda_service.MKO] = {}
+  prepped_mko_keys : list[str] = []
+  inprogress_mkos = []
+  ready_mkos = []
+  inprogress_mko_table = refresher.Element()
+  mko_progress_bars = {}
+  ondeck : bda_service.MKO
+  filecounter = 0
+  
+
+def initialize(settings, window):
+  assign_settings(window, settings)
+  set_bindings(window)
+
+def assign_settings(window, settings):
+  bt.settings = settings
   if bt.settings['start_time'] is not None: window['-TS_START_TIME-'].update(bt.settings['start_time']) 
   if bt.settings['end_time'] is not None: window['-TS_END_TIME-'].update(bt.settings['end_time']) 
   if bt.settings['sample_period'] is not None: window['-TS_SAMPLE_PERIOD-'].update(bt.settings['sample_period']) 
@@ -48,301 +40,225 @@ def set_bindings(window):
   window['-TS_SAMPLE_PERIOD-'].bind('<KeyPress-Return>','RETURN')
   window['-TS_NUMBER_SAMPLES-'].bind('<KeyPress-Return>','RETURN')
 
-def set_smip_auth(url, username, role, password, token):
-  bt.smip_auth['url'] = url
-  bt.smip_auth['username'] = username
-  bt.smip_auth['role'] = role
-  bt.smip_auth['password'] = password
-  bt.smip_auth['token'] = token
+def unique_name(name: str):
+  bt.filecounter += 1
+  return f"{name}.{bt.filecounter}"
 
-def add_timeseries(attrib_id, attrib_name, window):
+def delete_mko_from_prepped(mko, window):
+  if mko.name not in bt.prepped_mkos:
+    return
+  del bt.prepped_mkos[mko.name]
+  bt.prepped_mko_keys = list(bt.prepped_mkos)
+  bt.prepped_mko_keys.sort()
+  tmp = [[bt.prepped_mkos[n].name, bt.prepped_mkos[n].stage]
+          for n in bt.prepped_mko_keys]
+  window['-BT_PREPPED_MKOS-'].update(values=tmp)
+
+def add_mko_to_prepped(mko: bda_service.MKO, window):
+  mko.set_progress(0.0)
+  mko.set_autoprogress(False)
+  bt.prepped_mkos[mko.name] = mko
+  bt.prepped_mko_keys = list(bt.prepped_mkos)
+  bt.prepped_mko_keys.sort()
+  tmp = [[bt.prepped_mkos[n].name, bt.prepped_mkos[n].stage]
+          for n in bt.prepped_mko_keys]
+  window['-BT_PREPPED_MKOS-'].update(values=tmp)
+
+def add_mko_to_inprogress(mko : bda_service.MKO, window):
+  mko.set_autoprogress(True)
+  mko.set_inprocess(False)
+  refresher.refresh_daemon.add_task(mko)
+  bt.inprogress_mkos.append(mko.name)
+  update_inprogress_mko_table(window)
+  def make_refresh():
+    update_inprogress_mko_table(window)
+  bt.inprogress_mko_table.set_refresh_function(make_refresh)
+  refresher.refresh_daemon.add_task(bt.inprogress_mko_table)
   
-  if attrib_name not in ts.known_features:
-    ts.avail_keys.append(attrib_name)
-    ts.known_features[attrib_name] = attrib_id
-    window['-TS_FEATURE_LIST-'].update(values=ts.avail_keys)
-    new_index = ts.avail_keys.index(attrib_name)
-    window['-TS_FEATURE_LIST-'].update(set_to_index=[new_index],
-    scroll_to_index=new_index)
-  else:
-    statusbar.update("Updating name {} to id {}".format(attrib_name, attrib_id))
-    ts.known_features[attrib_name] = attrib_id
-  
-def add_lot_series(attrib_id, attrib_name, feature_list, window):
-  ls.feature_container_attrib = int(attrib_id)
-  ls.feature_container_name = attrib_name 
-  ls.known_features = feature_list
-  ls.avail_keys = feature_list
-  ls.inputs_keys = []
-  ls.outputs_keys = []
-  window['-LS_LOT_HOLDER_ATTRIBUTE-'].update(ls.feature_container_attrib)
-  window['-LS_LOT_HOLDER_NAME-'].update(ls.feature_container_name)
-  window['-LS_FEATURE_LIST-'].update(values=ls.avail_keys)
-  window['-LS_INPUTS_LIST-'].update(values=ls.inputs_keys)
-  window['-LS_OUTPUTS_LIST-'].update(values=ls.outputs_keys)
 
-def avail_to_inputs(values, window, tab):
-  selected_indexes = window[f'-{tab.prefix}_FEATURE_LIST-'].get_indexes()
-  for index in selected_indexes:
-    tab.inputs_keys.append(tab.avail_keys.pop(index))
-  window[f'-{tab.prefix}_FEATURE_LIST-'].update(tab.avail_keys)
-  window[f'-{tab.prefix}_INPUTS_LIST-'].update(tab.inputs_keys)
+def update_inprogress_mko_table(window):
+  for mko_name in list(bt.inprogress_mkos):
+    mko = bt.known_mkos[mko_name]
+    if mko.ready and mko not in bt.ready_mkos:
+      bt.inprogress_mkos.remove(mko_name)
+      bt.ready_mkos.append(mko_name)
+      mko.set_unqueue()
+      window['-DT_READY_MKOS-'].update(values=bt.ready_mkos )
+      continue
+    if mko.unqueue:
+      bt.inprogress_mkos.remove(mko_name)
+      continue
+    x = int(10 * mko.progress)
+    progress_string = "*" * x + "-" * (10-x)
+    bt.mko_progress_bars[mko_name] = progress_string
+  inprogress_table = [
+    [name, bt.known_mkos[name].stage, bt.mko_progress_bars[name] ]
+    for name in bt.inprogress_mkos ]
+  window['-IN_PROGRESS_MKOS-'].update(values=inprogress_table )
+      
+def load_mko_from_file(filename):
+  if bda_service.service == None:
+    statusbar.update("Cannot load MKO into service: not logged in.")
+    raise ConnectionError("Service not connected")
+  name = Path(filename).stem
+  if name in bt.known_mkos:
+    bt.filecounter += 1
+    name = name + "({})".format(bt.filecounter)
+  mko = bda_service.MKO(name, bda_service.service.current_user, bda_service.service)
+  bt.known_mkos[name] = mko
+  mko.load_from_file(filename)
+  dataspec = bda_service.service.get_mko_as_dict(mko)['dataspec']
+  mko.incorporate_dataspec(dataspec)
+  return mko, name
 
-def avail_to_outputs(values, window, tab):
-  selected_keys = values[f'-{tab.prefix}_FEATURE_LIST-']
-  selected_indexes = window[f'-{tab.prefix}_FEATURE_LIST-'].get_indexes()
-  for index in selected_indexes:
-    tab.outputs_keys.append(tab.avail_keys.pop(index))
-  window[f'-{tab.prefix}_FEATURE_LIST-'].update(tab.avail_keys)
-  window[f'-{tab.prefix}_OUTPUTS_LIST-'].update(tab.outputs_keys)
-
-def inputs_to_avail(values, window, tab):
-  selected_indexes = window[f'-{tab.prefix}_INPUTS_LIST-'].get_indexes()
-  for index in selected_indexes:
-    tab.avail_keys.append(tab.inputs_keys.pop(index))
-  window[f'-{tab.prefix}_INPUTS_LIST-'].update(tab.inputs_keys)
-  window[f'-{tab.prefix}_FEATURE_LIST-'].update(tab.avail_keys)
-
-def outputs_to_avail(values, window, tab):
-  selected_indexes = window[f'-{tab.prefix}_OUTPUTS_LIST-'].get_indexes()
-  for index in selected_indexes:
-    tab.avail_keys.append(tab.outputs_keys.pop(index))
-  window[f'-{tab.prefix}_OUTPUTS_LIST-'].update(tab.outputs_keys)
-  window[f'-{tab.prefix}_FEATURE_LIST-'].update(tab.avail_keys)
-
-def parseTime(key, dateStr, window) -> 'datetime.datetime':
+def send_to_ondeck(mko, values, window):
+  bt.ondeck = mko
+  window['-DT_ONDECK_MKO-'].update(mko.name)
   try:
-    dateObj = dateutil.parser.parse(dateStr)
-  except dateutil.parser.ParserError as err:
-    window[key].update(select=True)
-    return None
-  window[key].update(value=dateObj.strftime("%Y-%m-%dT%H:%M:%SZ"), text_color="blue")
-  return dateObj
-  
-def create_feature_id_list_ts(tab):
-  attrib_id_list = [tab.known_features[key] for key in tab.inputs_keys + tab.outputs_keys]
-  return attrib_id_list
+    hypers = curator.get_hypers_from_mko(bda_service.service, mko)
+    curator.hypers_to_ui(hypers, window)
+    topology = curator.get_topology_from_mko(bda_service.service, mko)
+    curator.topology_to_ui(topology, window)
+  except: # Nothing essential here.
+    pass
+  window['-DT_TRAIN_AS_NAME-'].update(unique_name(mko.name))
+  show_layer_options(values, window)
+  return
 
-def samples_and_periods(samples, period, priority="s"):
-  s = int(samples)
-  p = float(period)
-  if ts.endTimeObj == None or ts.startTimeObj == None:
-    return s, p
-  interval = ts.endTimeObj.timestamp() - ts.startTimeObj.timestamp()
-  if p == 0:
-    if s == 0:
-      s = 10
-    p = interval / float(s)
-  elif s == 0:
-    s = interval / p
-  elif priority == "p":
-    s = int(interval / p)
-    p = interval / float(s)
-  else:
-    p = interval / float(s)
-  return s, p
+def train_ondeck(values,window):
+  if not isinstance(bt.ondeck, bda_service.MKO):
+    statusbar.error("NO MKO ONDECK TO TRAIN")
+    return True
+  new_name = values['-DT_TRAIN_AS_NAME-']
+  if new_name == "":
+    statusbar.error("Training name needed")
+    return True
+  new_mko = bt.ondeck.copy(new_name)
+  topology = curator.get_layer_spec(values)
+  new_mko.set_topology(topology)
+  hypers = curator.get_hyperparameter_spec(values)
+  new_mko.set_hypers(hypers)
+  new_mko.set_autocalibrate(values['-DT_AUTOCALIBRATE-'])
+  new_mko.set_smip_auth(bda_service.service.smip_auth)
+  bt.known_mkos[new_name] = new_mko
+  new_mko.set_inprocess(True)
+  if new_mko.stage == 3:
+    new_mko.set_stage(2)
+  add_mko_to_inprogress(new_mko, window)
+  return True
 
-
-def init_server(values):
-  service_url = values["-BDA_URL-"]
-  bt.settings['url'] = service_url
-  secret = values["-SERVER_SECRET-"]
-  bt.settings['server_secret'] = secret
-  if not bda_service.service.initialized:
-    admin = bda_service.User("admin", "adminpassword")
-    bda_service.service.set_data(service_url, secret, admin)
-  elif bda_service.service.baseurl != service_url:
-    bda_service.service.set_baseurl(service_url)
-  try:
-    bda_service.service.initialize_server()
-    bda_service.service.login_user(bda_service.service.admin)
-    statusbar.update("Service is initialized")
-    refresher.refresh_daemon.add_task(bda_service.service.admin)
-  except Exception as err:
-    statusbar.update("Problems initializing server: {}".format(err))
-
-def create_user(values):
-  username = values["-BDA_USER-"]
-  password = values["-BDA_PASSWORD-"]
-  bt.settings['username'] = username
-  bt.settings['password'] = password
-  user = bda_service.User(username, password)
-  bda_service.service.add_user(user)
-  return user
-
-
-def handler(event, values, window, get_timeseries_array, get_lot_series, add_mko_to_infer):
-  ### SERVICE EVENTS SECTION ###
-  if event == "-INIT_SERVER-":
-    try:
-      init_server(values)
-    except Exception as err:
-      print(err)
-    return True
-  if event == "-CREATE_USER-":
-    try:
-      bt.user = create_user(values)
-    except Exception as err:
-      print(err)
-    return True
-  if event == "-LOG_IN_BDA-":
-    try:
-      bda_service.service.login_user(bt.user)
-      bda_service.service.set_current_user(bt.user)
-      refresher.refresh_daemon.add_task(bt.user)
-      window['-BDA_EXPIRES-'].update(bt.user.auth_expiration)
-      statusbar.update("logged {} in on BDA server".format(bt.user.username))
-    except Exception as err:
-      statusbar.update("Could not login {} on server: {}".format(bt.user.username, err))
-    return True
-
-  ### TIMESERIES EVENTS SECTION ###
-  if event == "-TS_INPUT_SEND-":
-    avail_to_inputs(values, window, ts)
-    return True
-  if event == "-TS_RETURN_INPUT-":
-    inputs_to_avail(values, window, ts)
-    return True
-  if event == "-TS_OUTPUT_SEND-":
-    avail_to_outputs(values, window, ts)
-    return True
-  if event == "-TS_RETURN_OUTPUT-":
-    outputs_to_avail(values, window, ts)
-    return True
-  if event == "-TS_PARSE_START-" or event == "-TS_START_TIME" + "RETURN":
-    key = "-TS_START_TIME-"
-    ts.startTimeObj = parseTime(key, values[key], window)
-    bt.settings["start_time"] = values[key]
-    s, p = samples_and_periods(values['-TS_NUMBER_SAMPLES-'], values['-TS_SAMPLE_PERIOD-'])
-    window['-TS_NUMBER_SAMPLES-'].update(str(s))
-    window['-TS_SAMPLE_PERIOD-'].update(str(p))
-    bt.settings['number_samples'] = s
-    bt.settings['period'] = p
-    return True
-  if event == "-TS_PARSE_END-" or event == "-TS_END_TIME" + "RETURN":
-    key = "-TS_END_TIME-"
-    ts.endTimeObj = parseTime(key, values[key], window)
-    bt.settings["end_time"] = values[key]
-    s, p = samples_and_periods(values['-TS_NUMBER_SAMPLES-'], values['-TS_SAMPLE_PERIOD-'])
-    window['-TS_NUMBER_SAMPLES-'].update(str(s))
-    window['-TS_SAMPLE_PERIOD-'].update(str(p))
-    bt.settings['number_samples'] = s
-    bt.settings['period'] = p
-    return True
-  if event == "-TS_SET_MAX_RANGE-":
-    ts.startTimeObj = parseTime("-TS_START_TIME-", "1900-01-01", window)
-    ts.endTimeObj = parseTime("-TS_END_TIME-", "2100-01-01", window)
-    s, p = samples_and_periods(values['-TS_NUMBER_SAMPLES-'], values['-TS_SAMPLE_PERIOD-'])
-    window['-TS_NUMBER_SAMPLES-'].update(str(s))
-    window['-TS_SAMPLE_PERIOD-'].update(str(p))
-    bt.settings['number_samples'] = s
-    bt.settings['period'] = p
-    return True
-  if event == "-TS_NUMBER_SAMPLES-" + "RETURN":
-    s, p = samples_and_periods(values['-TS_NUMBER_SAMPLES-'], values['-TS_SAMPLE_PERIOD-'], priority="s")
-    window['-TS_NUMBER_SAMPLES-'].update(str(s))
-    window['-TS_SAMPLE_PERIOD-'].update(str(p))
-    bt.settings['number_samples'] = s
-    bt.settings['period'] = p
-    return True
-  if event == "-TS_SAMPLE_PERIOD-" + "RETURN":
-    s, p = samples_and_periods(values['-TS_NUMBER_SAMPLES-'], values['-TS_SAMPLE_PERIOD-'], priority="p")
-    window['-TS_NUMBER_SAMPLES-'].update(str(s))
-    window['-TS_SAMPLE_PERIOD-'].update(str(p))
-    bt.settings['number_samples'] = s
-    bt.settings['period'] = p
-    return True
-  if event == "-TS_DOWNLOAD_REQUEST_FILENAME-":
-    filename = values['-TS_DOWNLOAD_REQUEST_FILENAME-']
-    df = get_timeseries_array(bt.smip_auth['url'],
-      bt.smip_auth['token'], create_feature_id_list_ts(ts),
-      ts.startTimeObj.strftime("%Y-%m-%d %H:%M:%S+00"),
-      ts.endTimeObj.strftime("%Y-%m-%d %H:%M:%S+00"),
-      values['-TS_NUMBER_SAMPLES-'],
-      datetime.timedelta(seconds=int(float(values['-TS_SAMPLE_PERIOD-']))))
-    time_as_timestamp = window['-TS_TIME_AS_TIMESTAMP-'].get()
-    df.dropna(inplace=True)
-    if time_as_timestamp:
-      df['ts'] = pd.to_datetime(df.ts)
-      df['ts'] = df.ts.astype('int64') //  10**9
-    with open(filename, "w") as fd:
-      fd.write(df.to_csv(index=False, date_format="%Y-%m-%d %H:%M:%S+00"))
-      fd.close()
-    return True
-  if event == "-TS_TRAIN_MKO-":
-    if bda_service.service.current_user.logged_in is False:
-      return True
-    model_name = values['-TS_MKO_NAME-']
-    mko = bda_service.MKO(model_name, bt.user, bda_service.service, auto_progress=True)
-    inputs = [str(ts.known_features[key]) for key in ts.inputs_keys]
-    outputs = [str(ts.known_features[key]) for key in ts.outputs_keys]
-    time_as_input = window["-TS_TIME_AS_INPUT-"].get()
-    mko.set_inputs_and_outputs_ls(inputs, outputs, time_as_input)
-    mko.set_time_parameters(
-      ts.startTimeObj,
-      ts.endTimeObj,
-      values['-TS_SAMPLE_PERIOD-'],
-      values['-TS_NUMBER_SAMPLES-']
-    )
-    mko.set_smip_auth(bt.smip_auth)
-    add_mko_to_infer(mko, window)
-    refresher.refresh_daemon.add_task(mko)
-    return True
-
-  ### LOT SERIES EVENTS SECTION ###
-  if event == "-LS_INPUT_SEND-":
-    avail_to_inputs(values, window, ls)
-    return True
-  if event == "-LS_RETURN_INPUT-":
-    inputs_to_avail(values, window, ls)
-    return True
-  if event == "-LS_OUTPUT_SEND-":
-    avail_to_outputs(values, window, ls)
-    return True
-  if event == "-LS_RETURN_OUTPUT-":
-    outputs_to_avail(values, window, ls)
-    return True
-  if event == "-LS_SET_MAX_RANGE-":
-    if values[event] == True:
-      window['-LS_START_LOT-'].update(disabled=True)
-      window['-LS_END_LOT-'].update(disabled=True)
-      ls.all_lots = True
+def show_layer_options(values, window):
+  show_autocalibrate = False
+  for i in range(number_of_layers):
+    l_type = values[layer_keys['type'].format(i)]
+    if l_type == 'variational': l_type = 'variational_dropout'
+    if l_type == "-":
+      window[layer_keys['activation'].format(i)].update(visible=False)
+      window[layer_keys['units'].format(i)].update(visible=False)
     else:
-      window['-LS_START_LOT-'].update(disabled=False)
-      window['-LS_END_LOT-'].update(disabled=False)
-      ls.all_lots = False
-  if event == "-LS_DOWNLOAD_REQUEST_FILENAME-":
-    filename = values['-LS_DOWNLOAD_REQUEST_FILENAME-']
-    df = get_lot_series(bt.smip_auth['url'],
-      bt.smip_auth['token'], ls.feature_container_attrib,
-      ls.all_lots,
-      values['-LS_START_LOT-'],
-      values['-LS_END_LOT-'],
-    )
-    df.dropna(inplace=True)
-    df = df[ls.inputs_keys + ls.outputs_keys]
-    with open(filename, "w") as fd:
-      fd.write(df.to_csv(index=False))
-      fd.close()
+      window[layer_keys['activation'].format(i)].update(visible=True)
+      window[layer_keys['units'].format(i)].update(visible=True)
+    if l_type in ["dropout", "variational_dropout"]:
+      window[layer_keys['rate'].format(i)].update(visible=True)
+    else:
+      window[layer_keys['rate'].format(i)].update(visible=False)
+    if l_type in ["variational_dropout"]:
+      show_autocalibrate=True
+
+  if show_autocalibrate:
+    window["-DT_AUTOCALIBRATE-"].update(disabled=False)
+  else:
+    window["-DT_AUTOCALIBRATE-"].update(value=False, disabled=True)
+    
+def handler(event, values, window, add_mko_to_infer):
+
+  show_layer_options(values, window)
+
+  if event == "-BT_PREPPED_MKOS-":
+    selected_indices = values['-BT_PREPPED_MKOS-']
+    prepped_index = selected_indices[0]
+    mko = bt.prepped_mkos[bt.prepped_mko_keys[prepped_index]]
+    window["-DT_SOURCE_MKO-"].update(mko.name)
+    window["-DT_TRAIN_AS_NAME-"].update(mko.name)
     return True
-  if event == "-LS_TRAIN_MKO-":
-    if bda_service.service.current_user.logged_in is False:
+
+  if event == "-TRAIN_MKO-":
+    try:
+      train_ondeck(values, window)
+    except:
+      pass
+    return True
+
+  if event == "-DT_PREPPED_TO_ONDECK-":
+    selected_indices = values['-BT_PREPPED_MKOS-']
+    if len(selected_indices) == 0:
+      statusbar.update("NO MKO SELECTED TO DELETE")
       return True
-    model_name = values['-LS_MKO_NAME-']
-    mko = bda_service.MKO(model_name, bt.user, bda_service.service, series_type="lot", auto_progress=True)
-    inputs = [str(ls.known_features[key]) for key in ls.inputs_keys]
-    outputs = [str(ls.known_features[key]) for key in ls.outputs_keys]
-    mko.set_inputs_and_outputs_ls(ls.feature_container_attrib, inputs, outputs)
-    mko.set_lot_parameters(
-      ls.all_lots,
-      values['-LS_START_LOT-'],
-      values['-LS_END_LOT-']
-    )
-    mko.set_smip_auth(bt.smip_auth)
-    add_mko_to_infer(mko, window)
-    refresher.refresh_daemon.add_task(mko)
+    prepped_index = selected_indices[0]
+    mko = bt.prepped_mkos[bt.prepped_mko_keys[prepped_index]]
+    send_to_ondeck(mko, values, window)
     return True
 
+  if event == "-DT_PREPPED_DELETE-":
+    selected_indices = values['-BT_PREPPED_MKOS-']
+    if len(selected_indices) == 0:
+      statusbar.update("NO MKO SELECTED TO DELETE")
+      return True
+    prepped_index = selected_indices[0]
+    mko = bt.prepped_mkos[bt.prepped_mko_keys[prepped_index]]
+    delete_mko_from_prepped(mko, window)
+    statusbar.update(f"DELETED MKO {mko.name}")
+    return True
 
+  if event == "-DT_READY_TO_ONDECK-":
+    selected_indices = window['-DT_READY_MKOS-'].get_indexes()
+    if len(selected_indices) == 0:
+      statusbar.update("NO MKO SELECTED TO SEND TO ON-DECK")
+      return True
+    ready_index = selected_indices[0]
+    mko = bt.known_mkos[bt.ready_mkos[ready_index]]
+    send_to_ondeck(mko, values, window)
+    return True
+
+  if event == "-DT_TO_INFER-":
+    selected_indices = window['-DT_READY_MKOS-'].get_indexes()
+    if len(selected_indices) == 0:
+      statusbar.update("NO MKO SELECTED TO SEND TO INFER")
+      return True
+    ready_index = selected_indices[0]
+    mko = bt.known_mkos[bt.ready_mkos[ready_index]]
+    add_mko_to_infer(mko, bt.ready_mkos[ready_index], window)
+
+  if event == "-DT_READY_SAVE-":
+    selected_indices = window['-DT_READY_MKOS-'].get_indexes()
+    if len(selected_indices) == 0:
+      statusbar.update("NO MKO SELECTED TO SAVE")
+      return True
+    filename = values['-DT_READY_SAVE-']
+    ready_index = selected_indices[0]
+    mko = bt.known_mkos[bt.ready_mkos[ready_index]]
+    mko.save_to_file(filename)
+    return True
+
+  if event == "-DT_READY_LOAD-":
+    try:
+      filename = values['-DT_READY_LOAD-']
+      mko, name = load_mko_from_file(filename)
+      bt.ready_mkos.append(name)
+      window['-DT_READY_MKOS-'].update(values=bt.ready_mkos )
+      statusbar.update(f"Loaded MKO {mko.name} from file {filename}")
+    except bda_service.BDAServiceException as err:
+      statusbar.error("Cannot load MKO. Are you logged in?")
+    return True
+
+  if event == "-UNQUEUE_MKOS-":
+    statusbar.update("Unqueuing all inprogress MKOs")
+    for mko_name in list(bt.inprogress_mkos):
+      mko = bt.known_mkos[mko_name]
+      mko.set_unqueue()
+      bt.inprogress_mkos.remove(mko_name)
+      mko.set_stage(0)
+    update_inprogress_mko_table(window)
+    return True
 
   return False

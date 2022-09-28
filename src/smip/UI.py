@@ -54,7 +54,6 @@ def handler(event, values, window, token_to_BDA, ts_to_BDA, ls_to_BDA):
         ).strftime("%m/%d/%Y, %H:%M:%S")
 
       window['-SMIP_EXPIRES-'].update(smip_token_expiration)
-      window['-SEND_TO_BDA-'].update(visible=True)
       window['-SEND_TO_CLIPBOARD-'].update(visible=True)
       token_to_BDA(url, username, role, password, smip_token)
       statusbar.update("TOKEN SENT TO BDA SIDE")
@@ -174,7 +173,7 @@ if __name__ == "__main__":
   while True:
     event, values = window.read()
     
-    handler(event, values, window, None, None)
+    handler(event, values, window, None, None, None)
 
     if event == sg.WINDOW_CLOSED:
       break

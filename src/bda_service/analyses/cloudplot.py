@@ -1,6 +1,7 @@
 import PySimpleGUI as sg
 import numpy as np
 import json
+import pandas as pd
 from io import StringIO
 
 from support_functions import encodings
@@ -14,7 +15,16 @@ class Cloudplot(Analysis):
 
   def query_data(self) -> dict:
     mko_data = self._mko.contents
-    data_table = np.loadtxt(self._analysis_data['data_filename'],delimiter=",").tolist()
+    try:
+      input_df = pd.read_csv(self._analysis_data['data_filename'])
+      mapping =  dict(zip(input_df.columns, [ col.lstrip().rstrip() for col in input_df.columns]))
+      input_df = input_df.rename(columns=mapping)
+      cols = self._mko.dataspec['inputs'] + self._mko.dataspec['outputs']
+      data_table = input_df[cols].to_numpy()
+    except:
+      data_table = np.loadtxt(self._analysis_data['data_filename'],delimiter=",")
+    data_table = encodings.b64encode_datatype(data_table)
+
     n_samples = self._analysis_data.get('n_samples', "0")
     try: int(n_samples)
     except: n_samples = 0

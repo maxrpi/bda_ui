@@ -11,6 +11,14 @@ class BDAServiceException(Exception):
   def __init__(self, *args: object) -> None:
     super().__init__(*args)
     pass
+class ServiceNotInitialized(BDAServiceException):
+  def __init__(self, *args: object) -> None:
+    super().__init__(*args)
+    pass
+class ServiceNotLoggedIn(BDAServiceException):
+  def __init__(self, *args: object) -> None:
+    super().__init__(*args)
+    pass
 
 class BDAService(object):
 
@@ -21,6 +29,8 @@ class BDAService(object):
     self._access_list : list
     self._initialized = False
     self._has_data = False
+    self._smip_auth : dict
+    self._current_user : User = None
   
   def set_data(self, baseurl: str, secret: str, admin : User):
     self._baseurl = baseurl
@@ -65,10 +75,26 @@ class BDAService(object):
 
   def set_baseurl(self, url):
     self._baseurl = url
+  
+  def set_smip_auth(self, url, username, role, password, smip_token):
+    self._smip_auth = {
+      "url"       : url,
+      "username"  : username,
+      "role"      : role,
+      "password"  : password,
+      "token": smip_token,
+    }
 
   @property
   def current_user(self):
-    return self._current_user
+    try:
+      return self._current_user
+    except Exception as err:
+      raise ServiceNotLoggedIn(err)
+
+  @property
+  def smip_auth(self):
+    return self._smip_auth
 
   #### SERVICE OPERATIONS ####
   def redeem_claim_check(self, user: User, claim_check : str):
@@ -123,6 +149,7 @@ class BDAService(object):
     refresh_token = response.cookies['refresh_token']
     u.set_auth_token(auth_token)
     u.set_refresh_token(refresh_token)
+    statusbar.update(f"Refreshing user login for {u.username}")
   
   #### OPERATIONS ON MKOS ####
   def register_mko(self, mko : MKO):
@@ -144,6 +171,8 @@ class BDAService(object):
     data = {"username": mko.user.username}
     data['model_name'] = mko.name
     data['dataspec'] = mko.dataspec
+    data['topology'] = mko.topology
+    data['hyper_parameters'] = mko.hypers
     data['mkodata'] = mko.contents
     data = json.dumps({'data' : data})
     response = requests.post(url, headers=mko.user.headers, data=data)
@@ -152,8 +181,11 @@ class BDAService(object):
     mko.set_progress(0.0)
     return claim_check
 
-  def train_mko(self, mko):
-    url = self.baseurl + "/Train/train"
+  def train_mko(self, mko : MKO):
+    if mko.autocalibrate:
+      url = self.baseurl + "/Train/trainCalibrate"
+    else:
+      url = self.baseurl + "/Train/train"
     data = {"username": mko.user.username}
     data['model_name'] = mko.name
     data['mkodata'] = mko.contents
@@ -204,6 +236,15 @@ class BDAService(object):
           mko.set_claim_check(claim_check)
       except Exception as err:
         statusbar.update(err)
+
+  def get_mko_as_dict(self, mko : MKO):
+    data = {
+      "mkodata" : mko.contents
+    }
+    data = json.dumps({'data' : data})
+    url = self.baseurl + "/Train/describe_mko"
+    response = requests.post(url, headers=self.current_user.headers, data=data)
+    return json.loads(response.content)
 
 
   ##### OPERATIONS ON ANALYSES #####
