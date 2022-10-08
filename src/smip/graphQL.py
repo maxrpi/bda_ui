@@ -67,24 +67,27 @@ def get_equipment_description(url, token, attrib_id):
 
 
 def post_lot_series_id(url, token, attrib_id, filename, delete_all=False, replace_all=False):
+  blocksize = 2000
   table = pd.read_csv(filename, header=0)
   (start_time, end_time) = max_time_range()
   time_incr = timedelta(seconds=60)
   (first_time_index, _) = max_time_range(as_datetime=True)
   first_time_index =  first_time_index + time_incr
   query_template = queries.update_lot_series
-  entries = table_to_lotseries(first_time_index, time_incr, table, unix_timestamp=False)
-  query = query_template.format(attrib_id=attrib_id,
-    start_time=start_time, end_time=end_time, entries=entries)
-  
-  try:
-    smp_response = perform_graphql_request(query, url,  headers={"Authorization": f"Bearer {token}"})
-    return smp_response['data']
-  except Exception as err:
-    if "forbidden" in str(err).lower() or "unauthorized" in str(err).lower():
-      raise(AuthenticationError(err))
-    else:
-      raise(err)
+  entries, times = table_to_lotseries(first_time_index, time_incr, table, unix_timestamp=False)
+  for ll in range(0, len(entries), blocksize):
+    ul = min(ll + blocksize, len(entries))
+    entries_block = "\n".join(entries[ll:ul])
+    query = query_template.format(attrib_id=attrib_id,
+      start_time=times[ll], end_time=times[ul-1], entries=entries_block)
+    try:
+      smp_response = perform_graphql_request(query, url,  headers={"Authorization": f"Bearer {token}"})
+      print(f"{ul/len(times) * 100.0}% done uploading")
+    except Exception as err:
+      if "forbidden" in str(err).lower() or "unauthorized" in str(err).lower():
+        raise(AuthenticationError(err))
+      else:
+        raise(err)
 
 def post_timeseries_id(url, token, attrib_id, filename, delete_all=False, replace_all=False):
   (start_time, end_time, stamped_data) = \
@@ -167,14 +170,15 @@ def get_lot_series(url, token, attrib_id, all_lots=True, start_lot=-1, end_lot="
   
   df = pd.json_normalize(rows)
   
-  df.astype({'id': 'int32'}).dtypes
-  cols = df.columns.tolist()
-  idex = cols.index("id")
-  tmp = cols[0]
-  cols[0] = cols[idex]
-  cols[idex] = tmp
-  df = df[cols]
-  df.set_index("id")
+  if 'id' in df.columns:
+    df.astype({'id': 'int32'}).dtypes
+    cols = df.columns.tolist()
+    idex = cols.index("id")
+    tmp = cols[0]
+    cols[0] = cols[idex]
+    cols[idex] = tmp
+    df = df[cols]
+    df.set_index("id")
 
   if not all_lots:
     df.sort_index(inplace=True)

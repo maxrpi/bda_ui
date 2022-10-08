@@ -55,11 +55,13 @@ def add_analysis(analysis, window):
   
 
 def update_pending_analyses_table(window):
+  new_analyses = []
   for analysis_name in list(bi.pending_analyses):
     analysis = bi.known_analyses[analysis_name]
     if analysis.ready and analysis not in bi.ready_analyses:
       bi.pending_analyses.remove(analysis_name)
       bi.ready_analyses.append(analysis_name)
+      new_analyses.append(analysis_name)
       analysis.set_unqueue()
       continue
     if analysis.unqueue:
@@ -75,6 +77,13 @@ def update_pending_analyses_table(window):
 
   window['-PENDING_ANALYSES-'].update(values=pending_table )
   window['-READY_ANALYSES-'].update(values=bi.ready_analyses )
+  if len(new_analyses) > 1:
+    statusbar.update("Analyses ready: {}".format(",".join(new_analyses)))
+  elif len(new_analyses) == 1:
+    statusbar.update("Analysis {} ready".format(new_analyses[0]))
+  else:
+    pass
+
 
 
   
@@ -98,6 +107,7 @@ def handler(event, values, window):
     bda_service.service.launch_analysis(analysis)
     add_analysis(analysis, window)
     refresher.refresh_daemon.add_task(analysis)
+    statusbar.update(f"Queuing {mko_name} for {bi.current_analysis}")
     return True
 
   if event == "-DISPLAY_ANALYSIS-":

@@ -5,7 +5,7 @@ class HistogramUI(AnalysisUI):
 
   go_tag = "-HISTOGRAM_GO-"
   analysis_data = {}
-  name = "default"
+  name = "hist"
 
   layout = [
     [
@@ -19,11 +19,12 @@ class HistogramUI(AnalysisUI):
       sg.T("number of bins"), sg.In("", size=9, k="-HISTOGRAM_N_BINS-", enable_events=True),
     ],
     [
-      sg.In("", visible=False, enable_events=True, key="-HISTOGRAM_INPUT_FILENAME-"),
       sg.FileBrowse("Load Inputs",
-        file_types=[('.txt','*.txt')],
+        file_types=[('.csv','*.csv'),('.txt','*.txt')],
         key='-LOAD_HISTOGRAM_INPUTS-',
-        enable_events=True)
+        enable_events=True,
+        target="-HISTOGRAM_INPUT_FILENAME-"),
+      sg.In("", visible=True, enable_events=True, key="-HISTOGRAM_INPUT_FILENAME-"),
     ],
     [
       sg.B("GO!", enable_events=True, key="-HISTOGRAM_GO-")

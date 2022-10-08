@@ -19,11 +19,11 @@ class SamplerUI(AnalysisUI):
       sg.T("number of samples"), sg.In("", size=9, k="-SAMPLER_N_SAMPLES-", enable_events=True)
     ],
     [
-      sg.In("", visible=False, enable_events=True, key="-SAMPLER_INPUT_FILENAME-"),
       sg.FileBrowse("Load Inputs",
         file_types=[('.csv','*.csv'),('.txt','*.txt')],
         key='-LOAD_SAMPLER_INPUTS-',
-        enable_events=True)
+        enable_events=True),
+      sg.In("", visible=True, enable_events=True, key="-SAMPLER_INPUT_FILENAME-"),
     ],
     [
       sg.B("GO!", enable_events=True, key="-SAMPLER_GO-")

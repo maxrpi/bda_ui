@@ -90,7 +90,7 @@ lot_series_layout = [
         [
           sg.Listbox(values=[], size=(sorter_width,12,),
             enable_events=True, key="-LS_FEATURE_LIST-",
-            select_mode="LISTBOX_SELECT_MODE_MULTIPLE")
+            select_mode=sg.LISTBOX_SELECT_MODE_EXTENDED)
         ]
       ],
       vertical_alignment="center"
@@ -110,10 +110,10 @@ lot_series_layout = [
     sg.Column(
       [
         [ sg.Listbox([], size=(sorter_width,6),
-            select_mode="LISTBOX_SELECT_MODE_MULTIPLE",
+            select_mode=sg.LISTBOX_SELECT_MODE_EXTENDED,
             key="-LS_INPUTS_LIST-")],
         [ sg.Listbox([], size=(sorter_width,6),
-            select_mode="LISTBOX_SELECT_MODE_MULTIPLE",
+            select_mode=sg.LISTBOX_SELECT_MODE_EXTENDED,
             key="-LS_OUTPUTS_LIST-")]
       ],
       vertical_alignment="center"

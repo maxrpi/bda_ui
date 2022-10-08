@@ -100,30 +100,37 @@ def add_lot_series(attrib_id, attrib_name, feature_list, window):
 
 def avail_to_inputs(values, window, tab):
   selected_indexes = window[f'-{tab.prefix}_FEATURE_LIST-'].get_indexes()
-  for index in selected_indexes:
-    tab.inputs_keys.append(tab.avail_keys.pop(index))
+  moving = [tab.avail_keys[index] for index in selected_indexes]
+  for item in moving:
+    tab.avail_keys.remove(item)
+    tab.inputs_keys.append(item)
   window[f'-{tab.prefix}_FEATURE_LIST-'].update(tab.avail_keys)
   window[f'-{tab.prefix}_INPUTS_LIST-'].update(tab.inputs_keys)
 
 def avail_to_outputs(values, window, tab):
-  selected_keys = values[f'-{tab.prefix}_FEATURE_LIST-']
   selected_indexes = window[f'-{tab.prefix}_FEATURE_LIST-'].get_indexes()
-  for index in selected_indexes:
-    tab.outputs_keys.append(tab.avail_keys.pop(index))
+  moving = [tab.avail_keys[index] for index in selected_indexes]
+  for item in moving:
+    tab.avail_keys.remove(item)
+    tab.outputs_keys.append(item)
   window[f'-{tab.prefix}_FEATURE_LIST-'].update(tab.avail_keys)
   window[f'-{tab.prefix}_OUTPUTS_LIST-'].update(tab.outputs_keys)
 
 def inputs_to_avail(values, window, tab):
   selected_indexes = window[f'-{tab.prefix}_INPUTS_LIST-'].get_indexes()
-  for index in selected_indexes:
-    tab.avail_keys.append(tab.inputs_keys.pop(index))
+  moving = [tab.inputs_keys[index] for index in selected_indexes]
+  for item in moving:
+    tab.inputs_keys.remove(item)
+    tab.avail_keys.append(item)
   window[f'-{tab.prefix}_INPUTS_LIST-'].update(tab.inputs_keys)
   window[f'-{tab.prefix}_FEATURE_LIST-'].update(tab.avail_keys)
 
 def outputs_to_avail(values, window, tab):
   selected_indexes = window[f'-{tab.prefix}_OUTPUTS_LIST-'].get_indexes()
-  for index in selected_indexes:
-    tab.avail_keys.append(tab.outputs_keys.pop(index))
+  moving = [tab.outputs_keys[index] for index in selected_indexes]
+  for item in moving:
+    tab.outputs_keys.remove(item)
+    tab.avail_keys.append(item)
   window[f'-{tab.prefix}_OUTPUTS_LIST-'].update(tab.outputs_keys)
   window[f'-{tab.prefix}_FEATURE_LIST-'].update(tab.avail_keys)
 

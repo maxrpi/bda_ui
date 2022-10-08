@@ -249,20 +249,25 @@ class BDAService(object):
 
   ##### OPERATIONS ON ANALYSES #####
   def launch_analysis(self, analysis : Analysis):
-    url = self.baseurl + analysis.endpoint
-    data = analysis.query_data()
-    data.update({"username": self.current_user.username})
-    data = json.dumps({'data' : data})
-    if analysis.direct_response:
+    try:
+      url = self.baseurl + analysis.endpoint
+      data = analysis.query_data()
+      data.update({"username": self.current_user.username})
+      data = json.dumps({'data' : data})
+      if analysis.direct_response:
+        response = requests.post(url, headers=self.current_user.headers, data=data)
+        if response.status_code != 200:
+          raise BDAServiceException("Error code from server: {}".format(response.status_code))
+        analysis.set_contents(response.content)
+        analysis.set_ready()
+        return
       response = requests.post(url, headers=self.current_user.headers, data=data)
-      analysis.set_contents(response.content)
-      analysis.set_ready()
-      return
-    response = requests.post(url, headers=self.current_user.headers, data=data)
-    claim_check = json.loads(response.content)['claim_check']
-    analysis._inprocess = True
-    analysis.set_progress(0.0)
-    analysis.set_claim_check(claim_check)
+      claim_check = json.loads(response.content)['claim_check']
+      analysis._inprocess = True
+      analysis.set_progress(0.0)
+      analysis.set_claim_check(claim_check)
+    except Exception as err:
+      statusbar.error("Could not launch analysis: {}".format(err))
 
 
   def refresh_analysis(self, analysis : Analysis):

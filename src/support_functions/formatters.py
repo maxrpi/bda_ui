@@ -38,12 +38,13 @@ def standardize_timestamp(timestamp, unix_timestamp=False):
 
 def table_to_lotseries(timestamp_start, ts_increment, table, unix_timestamp=False):
   entries = []
+  times = []
   time = timestamp_start
   for i in range(table.shape[0]):
     entries.append(row_to_lot(time, table.iloc[i], unix_timestamp))
+    times.append(standardize_timestamp(time, unix_timestamp))
     time = time + ts_increment
-  return "\n".join(entries)
-
+  return entries, times
 
 def row_to_lot(timestamp, row, unix_timestamp):
   timestamp_str = standardize_timestamp(timestamp, unix_timestamp)

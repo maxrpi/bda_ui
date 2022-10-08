@@ -38,7 +38,7 @@ layout = [
         ]
       ]
     ),
-    sg.Frame("ANALYSES", layout=[[option_tabs]],  size=(350,300)),
+    sg.Frame("ANALYSES", layout=[[option_tabs]],  size=(425,300)),
   ],
   [
     sg.HorizontalSeparator()

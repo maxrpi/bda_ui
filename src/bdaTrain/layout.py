@@ -5,9 +5,12 @@ layer_keys = {
   "activation"  : "-DT_ACTIVATION_{}",
   "units"       : "-DT_UNITS_{}",
   "rate"        : "-DT_RATE_{}",
+  "regularizer" : "-DT_REG_{}",
+  "lambda"      : "-DT_LAMBDA_{}",
 }
-layer_types = ["-", "dense", "dropout", "variational"]
+layer_types = ["-", "dense", "dropout", "variational", "concrete"]
 activation_types = ["linear", "relu", "tanh", "sigmoid"]
+reg_types = ["L2", "L1"]
 loss_functions = ["mse"]
 optimizers = ["adam"]
 number_of_layers = 5
@@ -16,7 +19,7 @@ training_options = [
   [
     sg.T("batchsize:"),sg.In("32", enable_events=True, size=5, key="-DT_BATCHSIZE-"),
     sg.T("epoch length:"),sg.In("300", enable_events=True, size=5, key="-DT_EPOCH-"),
-    sg.T("learning rate:"),sg.In("0.001", enable_events=True, size=5, key="-DT_LEARNING_RATE-"),
+    sg.T("rate sched:"),sg.In("[(0, 0.001)]", enable_events=True, size=20, key="-DT_LR_SCHEDULE-"),
   ],
   [
     sg.T("loss function:"),sg.Combo(default_value="mse", values=loss_functions, enable_events=True, size=5, key="-DT_LOSSFUNCTION-"),
@@ -31,30 +34,40 @@ training_options = [
         [
           sg.Combo(default_value="-",values=layer_types, enable_events=True, size=10, readonly=True, key="-DT_LAYER_0" ),
           sg.Combo(default_value="linear",values=activation_types, visible=False, size=6, readonly=True, key="-DT_ACTIVATION_0" ),
+          sg.Combo(default_value="L2",values=reg_types, visible=False, size=4, readonly=True, key="-DT_REG_0" ),
+          sg.In("0.01", enable_events=True, visible=False, size=5, key="-DT_LAMBDA_0"),
           sg.In("10", size=3, visible=False, key="-DT_UNITS_0"),
           sg.In("0.9", size=4, key="-DT_RATE_0", visible=False)
         ],
         [
           sg.Combo(default_value="-",values=layer_types, enable_events=True, size=10, readonly=True, key="-DT_LAYER_1" ),
           sg.Combo(default_value="linear",values=activation_types, visible=False, size=6, readonly=True, key="-DT_ACTIVATION_1" ),
+          sg.Combo(default_value="L2",values=reg_types, visible=False, size=4, readonly=True, key="-DT_REG_1" ),
+          sg.In("0.01", enable_events=True, visible=False, size=5, key="-DT_LAMBDA_1"),
           sg.In("10", size=3, visible=False, key="-DT_UNITS_1"),
           sg.In("0.9", size=4, key="-DT_RATE_1", visible=False)
         ],
         [
           sg.Combo(default_value="-",values=layer_types, enable_events=True, size=10, readonly=True, key="-DT_LAYER_2" ),
           sg.Combo(default_value="linear",values=activation_types, visible=False, size=6, readonly=True, key="-DT_ACTIVATION_2" ),
+          sg.Combo(default_value="L2",values=reg_types, visible=False, size=4, readonly=True, key="-DT_REG_2" ),
+          sg.In("0.01", enable_events=True, visible=False, size=5, key="-DT_LAMBDA_2"),
           sg.In("10", size=3, visible=False, key="-DT_UNITS_2"),
           sg.In("0.9", size=4, key="-DT_RATE_2", visible=False)
         ],
         [
           sg.Combo(default_value="-",values=layer_types, enable_events=True, size=10, readonly=True, key="-DT_LAYER_3" ),
           sg.Combo(default_value="linear",values=activation_types, visible=False, size=6, readonly=True, key="-DT_ACTIVATION_3" ),
+          sg.Combo(default_value="L2",values=reg_types, visible=False, size=4, readonly=True, key="-DT_REG_3" ),
+          sg.In("0.01", enable_events=True, visible=False, size=5, key="-DT_LAMBDA_3"),
           sg.In("10", size=3, visible=False, key="-DT_UNITS_3"),
           sg.In("0.9", size=4, key="-DT_RATE_3", visible=False)
         ],
         [
           sg.Combo(default_value="-",values=layer_types, enable_events=True, size=10, readonly=True, key="-DT_LAYER_4" ),
           sg.Combo(default_value="linear",values=activation_types, visible=False, size=6, readonly=True, key="-DT_ACTIVATION_4" ),
+          sg.Combo(default_value="L2",values=reg_types, visible=False, size=4, readonly=True, key="-DT_REG_4" ),
+          sg.In("0.01", enable_events=True, visible=False, size=5, key="-DT_LAMBDA_4"),
           sg.In("10", size=3, visible=False, key="-DT_UNITS_4"),
           sg.In("0.9", size=4, key="-DT_RATE_4", visible=False)
         ],
@@ -97,6 +110,7 @@ layout = [
             text_color="black",
             enable_events=False,
             select_mode="browse",
+            expand_x=True,
             key="-BT_PREPPED_MKOS-"
             ),
         ],

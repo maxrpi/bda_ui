@@ -1,7 +1,6 @@
 import PySimpleGUI as sg
 import pandas as pd
-import dateutil.parser
-import datetime
+import re
 from pathlib import Path
 import bda_service
 import refresher
@@ -42,6 +41,13 @@ def set_bindings(window):
 
 def unique_name(name: str):
   bt.filecounter += 1
+  pattern = re.compile(r"(.+)\.(\d+)")
+  m = pattern.fullmatch(name)
+  if m != None:
+    stem = m.groups(1)
+  else:
+    stem = name
+
   return f"{name}.{bt.filecounter}"
 
 def delete_mko_from_prepped(mko, window):
@@ -79,9 +85,12 @@ def add_mko_to_inprogress(mko : bda_service.MKO, window):
 def update_inprogress_mko_table(window):
   for mko_name in list(bt.inprogress_mkos):
     mko = bt.known_mkos[mko_name]
-    if mko.ready and mko not in bt.ready_mkos:
+    if mko.ready:
       bt.inprogress_mkos.remove(mko_name)
-      bt.ready_mkos.append(mko_name)
+      if mko.name not in bt.ready_mkos:
+        bt.ready_mkos.append(mko_name)
+      else:
+        statusbar.update("Updating MKO {} in READY MKOs list".format(mko.name))
       mko.set_unqueue()
       window['-DT_READY_MKOS-'].update(values=bt.ready_mkos )
       continue
@@ -143,7 +152,7 @@ def train_ondeck(values,window):
   bt.known_mkos[new_name] = new_mko
   new_mko.set_inprocess(True)
   if new_mko.stage == 3:
-    new_mko.set_stage(2)
+    new_mko.set_stage(1)
   add_mko_to_inprogress(new_mko, window)
   return True
 
@@ -158,12 +167,21 @@ def show_layer_options(values, window):
     else:
       window[layer_keys['activation'].format(i)].update(visible=True)
       window[layer_keys['units'].format(i)].update(visible=True)
+      window[layer_keys['lambda'].format(i)].update(visible=True)
+      window[layer_keys['regularizer'].format(i)].update(visible=True)
     if l_type in ["dropout", "variational_dropout"]:
       window[layer_keys['rate'].format(i)].update(visible=True)
     else:
       window[layer_keys['rate'].format(i)].update(visible=False)
     if l_type in ["variational_dropout"]:
       show_autocalibrate=True
+    
+    if l_type in ['variational_dropout', 'dropout', 'dense']:
+      window[layer_keys['regularizer'].format(i)].update(visible=True)
+      window[layer_keys['lambda'].format(i)].update(visible=True)
+    else:
+      window[layer_keys['regularizer'].format(i)].update(visible=False)
+      window[layer_keys['lambda'].format(i)].update(visible=False)
 
   if show_autocalibrate:
     window["-DT_AUTOCALIBRATE-"].update(disabled=False)
