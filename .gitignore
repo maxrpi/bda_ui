@@ -138,3 +138,5 @@ src/bar.txt
 *.mko
 *.txt
 *.csv
+*/tmp
+*.swp
