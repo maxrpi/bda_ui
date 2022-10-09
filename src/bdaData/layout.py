@@ -155,7 +155,7 @@ layout = [
     sg.SaveAs("Download Request Data",
       default_extension=".txt",
       file_types=[('Text','*.txt')],
-      enable_events=True
+      enable_events=True, initial_folder="data"
     ),
   ],
   [

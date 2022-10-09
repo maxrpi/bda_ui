@@ -66,7 +66,7 @@ def get_hyperparameter_spec(values):
 
 def get_hypers_from_mko(service, mko):
   data = service.get_mko_as_dict(mko)
-  return data.get('hyperparameters', {})
+  return data.get('hypers', {})
 
 def get_topology_from_mko(service, mko):
   data = service.get_mko_as_dict(mko)
@@ -76,10 +76,12 @@ def topology_to_ui(topology, window):
   skip = False
   tmpology = []
   for i in range(len(topology)-1, -1, -1):
+    layer = topology[i]
     if skip:
+      activation = layer['activation']
+      tmpology[0]['activation'] = activation
       skip = False
       continue
-    layer = topology[i]
     if layer['type'] in ['dropout', 'variational_dropout']:
       skip = True
     tmpology.insert(0,layer)
@@ -118,12 +120,14 @@ def hypers_to_ui(hypers, window):
     window['-DT_BATCHSIZE-'].update(hypers['batch_size'])
   if 'epochs' in hypers:
     window['-DT_EPOCH-'].update(hypers['epochs'])
-  if 'learning_rate' in hypers:
-    window['-DT_LEARNING_RATE-'].update(hypers['learning_rate'])
+  #if 'learning_rate' in hypers:
+  #  window['-DT_LEARNING_RATE-'].update(hypers['learning_rate'])
   if 'loss_function' in hypers:
     index = loss_functions.index(hypers['loss_function'])
-    window['-DT_LOSSFUNCTION'].update(set_to_index=index)
+    window['-DT_LOSSFUNCTION-'].update(set_to_index=index)
   if 'optimizer' in hypers:
     index = optimizers.index(hypers['optimizer'])
-    window['-DT_OPTIMIZER'].update(set_to_index=index)
+    window['-DT_OPTIMIZER-'].update(set_to_index=index)
+  if 'lr_schedule' in hypers:
+    window['-DT_LR_SCHEDULE-'].update(json.dumps(hypers['lr_schedule']))
   return

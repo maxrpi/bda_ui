@@ -55,6 +55,13 @@ class Cloudplot(Analysis):
         [
           sg.B("PREVIOUS", enable_events=True, key="-PREVIOUS-"), 
           sg.B("NEXT", enable_events=True, key="-NEXT-"), 
+          sg.In("", visible=False, enable_events=True, key="-SAVE_FILENAME-"),
+          sg.SaveAs("SAVE",
+            key="-SAVEAS-", target="-SAVE_FILENAME-",
+            default_extension=".png",
+            file_types=[('PNG','*.png'), ('PNG','*.PNG')],
+            initial_folder="data",
+          ),
           sg.B("EXIT", enable_events=True, key="-EXIT-")
         ],
         [ sg.Image(key="-IMAGE_BOX-", size=(500,500) ) ],
@@ -78,5 +85,10 @@ class Cloudplot(Analysis):
       if event == "-PREVIOUS-":
         index = (index + n_images - 1) % n_images
         window['-IMAGE_BOX-'].update(data=images[index])
+      if event == "-SAVE_FILENAME-":
+        filename = values["-SAVE_FILENAME-"]
+        with open(filename, "wb") as fd:
+          fd.write(images[index])
+          fd.close()
 
     window.close()

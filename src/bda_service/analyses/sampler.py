@@ -20,7 +20,7 @@ class Sampler(Analysis):
     mapping =  dict(zip(input_df.columns, [ col.lstrip().rstrip() for col in input_df.columns]))
     input_df = input_df.rename(columns=mapping)
     cols = self._mko.dataspec['inputs']
-    inputs = input_df[cols].to_numpy().tolist()
+    inputs = input_df[cols].to_numpy()[0].tolist()
     n_samples = self._analysis_data['n_samples']
     
     return {

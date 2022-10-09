@@ -7,39 +7,23 @@ from io import StringIO
 from support_functions import encodings
 from bda_service.analyses import Analysis
 
-class Histogram(Analysis):
+class History(Analysis):
   def __init__(self, name, mko, service, analysis_data) -> None:
-    super().__init__(name,"histogram", mko, service, analysis_data)
-    self._endpoint = "/Analyze/histogram"
+    super().__init__(name,"history", mko, service, analysis_data)
+    self._endpoint = "/Analyze/history"
     self._direct_response = False
 
   def query_data(self) -> dict:
     mko_data = self._mko.contents
-    input_df = pd.read_csv(self._analysis_data['input_filename'])
-    mapping =  dict(zip(input_df.columns, [ col.lstrip().rstrip() for col in input_df.columns]))
-    input_df = input_df.rename(columns=mapping)
-    cols = self._mko.dataspec['inputs']
-    inputs = encodings.b64encode_datatype(input_df[cols].to_numpy()[0])
-    #inputs = encodings.b64encode_datatype(np.loadtxt(self._analysis_data['input_filename'],delimiter=","))
-    n_samples = self._analysis_data.get('n_samples', "0")
-    n_bins = self._analysis_data.get('n_bins', "0")
-    try: int(n_bins)
-    except: n_bins = 0
-    try: int(n_samples)
-    except: n_samples = 0
     
     return {
-      "mko" : mko_data,
-      "inputs": inputs,
-      "n_samples" : n_samples,
-      "n_bins" : n_bins,
+      "mkodata" : mko_data,
     }
-  
+
   def return_contents(self):
     if not self.ready:
       raise Exception("Not ready")
     return self._contents
-    
   
   def return_contents_as_image(self):
     if not self.ready:
@@ -49,16 +33,15 @@ class Histogram(Analysis):
     return image
 
   def display_in_window(self):
-    window = sg.Window("Histogram",
+    window = sg.Window("Training History",
       [
-        [ sg.Text("Histogram:", enable_events=False), ],
+        [ sg.Text("Training History:", enable_events=False), ],
         [
           sg.In("", visible=False, enable_events=True, key="-SAVE_FILENAME-"),
           sg.SaveAs("SAVE",
             key="-SAVEAS-", target="-SAVE_FILENAME-",
             default_extension=".png",
-            file_types=[('PNG','*.png'), ('PNG','*.PNG')],
-            initial_folder="data"
+            file_types=[('PNG','*.png'), ('PNG','*.PNG')], initial_folder="data",
           ),
           sg.B("EXIT", enable_events=True, key="-EXIT-")
         ],
@@ -78,4 +61,5 @@ class Histogram(Analysis):
         with open(filename, "wb") as fd:
           fd.write(image)
           fd.close()
+
     window.close()

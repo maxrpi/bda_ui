@@ -19,11 +19,13 @@ training_options = [
   [
     sg.T("batchsize:"),sg.In("32", enable_events=True, size=5, key="-DT_BATCHSIZE-"),
     sg.T("epoch length:"),sg.In("300", enable_events=True, size=5, key="-DT_EPOCH-"),
-    sg.T("rate sched:"),sg.In("[(0, 0.001)]", enable_events=True, size=20, key="-DT_LR_SCHEDULE-"),
   ],
   [
     sg.T("loss function:"),sg.Combo(default_value="mse", values=loss_functions, enable_events=True, size=5, key="-DT_LOSSFUNCTION-"),
     sg.T("optimizer:"),sg.Combo(default_value="adam", values=optimizers, enable_events=True, size=5, key="-DT_OPTIMIZER-"),
+  ],
+  [
+    sg.T("rate sched:"), sg.In("[[0, 0.001]]", enable_events=True, size=40, key="-DT_LR_SCHEDULE-"),
   ],
   [
     sg.Checkbox("Autocalibrate", default=False, enable_events=True, key="-DT_AUTOCALIBRATE-"),
@@ -166,7 +168,7 @@ layout = [
       [ sg.T("SEND TO:") ],
       [ sg.B("ON DECK", enable_events=True, key="-DT_READY_TO_ONDECK-"), ],
       [ sg.B("Infer", enable_events=True, key="-DT_TO_INFER-"), ],
-      [ sg.SaveAs("File", file_types=[(".mko", "*.mko")], enable_events=True, key="-DT_READY_SAVE-"), ],
+      [ sg.SaveAs("File", file_types=[(".mko", "*.mko")], enable_events=True, key="-DT_READY_SAVE-", initial_folder="data"), ],
       [ sg.HorizontalSeparator(), ],
       [ sg.In("", visible=False, enable_events=True, key="-DT_READY_LOAD_FILENAME-"), ],
       [ sg.FileBrowse("Load MKO", enable_events=True, file_types=[(".mko", "*.mko")], key="-DT_READY_LOAD-") ],

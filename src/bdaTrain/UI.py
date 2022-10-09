@@ -44,11 +44,11 @@ def unique_name(name: str):
   pattern = re.compile(r"(.+)\.(\d+)")
   m = pattern.fullmatch(name)
   if m != None:
-    stem = m.groups(1)
+    stem = m.group(1)
   else:
     stem = name
 
-  return f"{name}.{bt.filecounter}"
+  return f"{stem}.{bt.filecounter}"
 
 def delete_mko_from_prepped(mko, window):
   if mko.name not in bt.prepped_mkos:
@@ -154,6 +154,7 @@ def train_ondeck(values,window):
   if new_mko.stage == 3:
     new_mko.set_stage(1)
   add_mko_to_inprogress(new_mko, window)
+  window["-DT_TRAIN_AS_NAME-"].update(unique_name(new_name))
   return True
 
 def show_layer_options(values, window):
@@ -262,6 +263,7 @@ def handler(event, values, window, add_mko_to_infer):
     try:
       filename = values['-DT_READY_LOAD-']
       mko, name = load_mko_from_file(filename)
+      mko.set_stage(3)
       bt.ready_mkos.append(name)
       window['-DT_READY_MKOS-'].update(values=bt.ready_mkos )
       statusbar.update(f"Loaded MKO {mko.name} from file {filename}")

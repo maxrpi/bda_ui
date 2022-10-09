@@ -6,7 +6,7 @@ from bda_service.analyses import Analysis
 
 class Describe(Analysis):
   def __init__(self, name, mko, service, analysis_data) -> None:
-    super().__init__(name,"sampler", mko, service, analysis_data)
+    super().__init__(name,"describe", mko, service, analysis_data)
     self._endpoint = "/Train/describe_mko"
     self._direct_response = True
 
