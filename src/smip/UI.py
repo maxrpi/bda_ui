@@ -3,7 +3,10 @@ import jwt
 import json
 import datetime
 import smip.graphQL
-top_text_width=16
+import pyperclip
+from  smip.layout import layout, SetLED
+from footer import statusbar
+
 smip_token_expiration = "no token"
 attrib_description = ""
 url = ""
@@ -12,79 +15,9 @@ username = ""
 password = ""
 role = ""
 attrib_id = None
+data_type = ""
 my_settings_copy = {}
 
-layout = [
-  [
-    sg.T("URL:"),
-    sg.In(url, enable_events=True, key="-SMIP_URL-", size=32),
-  ],
-  [
-    sg.T("SMIP Username:"),
-    sg.In("username", enable_events=True, key="-SMIP_USER-", size=top_text_width),
-    sg.T("SMIP role:"),
-    sg.In("role", enable_events=True, key="-SMIP_ROLE-", size=top_text_width),
-    sg.T("SMIP password:"),
-    sg.In("password", enable_events=True, key="-SMIP_PASSWORD-", size=top_text_width,
-      password_char="*"),
-  ],
-  [
-    sg.B("Get Token", enable_events=True, key="-GET_SMIP_TOKEN-"),
-    sg.B("Send to BDA", enable_events=True, visible=False, key="-SEND_TO_BDA-"),
-    sg.T("SMIP token expires:"),
-    sg.Multiline(smip_token_expiration, size=(20,1),
-                no_scrollbar=True, justification="t", key="-SMIP_EXPIRES-"),
-  ],
-  [
-    sg.HorizontalSeparator()
-  ],
-  [
-    sg.Column(
-      [
-        [
-          sg.T("Attribute id:"),
-          sg.In("", size=(5, 1), key="-ATTRIBUTE_ID-"),
-        ],
-        [
-          sg.B("Validate Id", enable_events=True, key="-VALIDATE_ID-"),
-          sg.B("Delete all data from ID", button_color="red", enable_events=True, visible=False, key="-DELETE_DATA_FROM_ID-")
-        ],
-        [
-          sg.In("", visible=False, key='-UPLOAD_FILENAME-', enable_events=True),
-          sg.FileBrowse("Upload file to attribute", enable_events=True, target="-UPLOAD_FILENAME-"),
-        ],
-        [
-          sg.Radio("Replace All", group_id="InsertReplace", default=True, key="-REPLACE_ALL-" ),
-          sg.Radio("Insert", group_id="InsertReplace", default=False, key="-INSERT_DATA-" )
-        ],
-        [
-          sg.B("Download attribute data", enable_events=True, key="-DOWNLOAD_ATTRIBUTE-", visible=False)
-        ],
-        [
-          sg.T("Attribute name"), 
-        ],
-        [
-          sg.In("ATTRIBUTE NAME", size=30, enable_events=True, key="-ATTRIBUTE_NAME-") 
-        ],
-        [
-          sg.B("Send attribute to BDA", enable_events=True, key="-ATTRIBUTE_TO_BDA-")
-        ]
-      ],
-      vertical_alignment='top', justification='l', p=10
-    ),
-    sg.Column(
-      [
-        [
-          sg.T("Eq/Prop Description"),
-        ],
-        [
-          sg.Multiline(attrib_description,size=(40,30), key="-EP_DESCRIPTION-")
-        ]
-      ],
-      element_justification='l',justification='l'
-    ),
-  ],
-]
 
 def assign_settings(settings, window):
   global my_settings_copy
@@ -102,9 +35,9 @@ def set_bindings(window):
 
 
 
-def handler(event, values, window, token_to_BDA, attrib_to_BDA):
+def handler(event, values, window, token_to_BDA, ts_to_BDA, ls_to_BDA):
 
-  global smip_token, url, username, role, password, attrib_id, my_settings_copy
+  global smip_token, url, username, role, password, attrib_id, data_type, my_settings_copy
   if event == "-GET_SMIP_TOKEN-" or event == "-SMIP_PASSWORD-" + "RETURN":
     try:
       url = values['-SMIP_URL-']
@@ -121,7 +54,9 @@ def handler(event, values, window, token_to_BDA, attrib_to_BDA):
         ).strftime("%m/%d/%Y, %H:%M:%S")
 
       window['-SMIP_EXPIRES-'].update(smip_token_expiration)
-      window['-SEND_TO_BDA-'].update(visible=True)
+      window['-SEND_TO_CLIPBOARD-'].update(visible=True)
+      token_to_BDA(url, username, role, password, smip_token)
+      statusbar.update("TOKEN SENT TO BDA SIDE")
     except Exception as err:
       print(err)
     return True
@@ -131,11 +66,19 @@ def handler(event, values, window, token_to_BDA, attrib_to_BDA):
       attrib_id = values['-ATTRIBUTE_ID-']
       attrib_description = smip.graphQL.get_equipment_description(url, smip_token, attrib_id)
       displayName = attrib_description['attribute']['displayName']
+      data_type = attrib_description['attribute']['dataType']
+      if data_type == "OBJECT":
+        SetLED(window, "-LOT_LED-", "yellow")
+        SetLED(window, "-TIMESERIES_LED-", "gray")
+      else:
+        SetLED(window, "-LOT_LED-", "gray")
+        SetLED(window, "-TIMESERIES_LED-", "yellow")
       pretty_attrib = json.dumps(attrib_description, sort_keys=True, indent=2)
       window['-EP_DESCRIPTION-'].update(f"{attrib_id}: {pretty_attrib}")
       window['-ATTRIBUTE_NAME-'].update("{}_{}".format(displayName,attrib_id))
       window["-DELETE_DATA_FROM_ID-"].update(visible=True)
       window["-DOWNLOAD_ATTRIBUTE-"].update(visible=True)
+
       my_settings_copy['attribute_id'] = attrib_id
     except Exception as err:
       window['-EP_DESCRIPTION-'].update("Could not validate id {}".format(attrib_id))
@@ -163,32 +106,63 @@ def handler(event, values, window, token_to_BDA, attrib_to_BDA):
       if values['-REPLACE_ALL-'] == True: replace_all = True 
       else: replace_all = False
 
-      print(smip.graphQL.post_timeseries_id(url, smip_token, attrib_id,
-        filename = values['-UPLOAD_FILENAME-'], replace_all=replace_all))
+      if data_type == "OBJECT":
+        smip.graphQL.post_lot_series_id(url, smip_token, attrib_id,
+          filename = values["-UPLOAD_FILENAME-"], replace_all=replace_all)
+      else:
+        print(smip.graphQL.post_timeseries_id(url, smip_token, attrib_id,
+          filename = values['-UPLOAD_FILENAME-'], replace_all=replace_all))
     except Exception as err:
       print(err)
     return True
 
   if event == "-DOWNLOAD_ATTRIBUTE-":
       window["-DOWNLOAD_ATTRIBUTE-"].update(visible=True)
-      attrib_data = smip.graphQL.get_raw_attribute_data(url, smip_token, attrib_id)
+      if data_type == "OBJECT":
+        attrib_data = smip.graphQL.get_lot_series(url, smip_token, attrib_id).to_csv(index=False)
+      else:
+        attrib_data = smip.graphQL.get_raw_attribute_data(url, smip_token, attrib_id, strip_nan=True)
       window['-EP_DESCRIPTION-'].update(attrib_data)
       return True
 
   if event == "-ATTRIBUTE_TO_BDA-" or event == "-ATTRIBUTE_NAME-" + "RETURN":
     try:
-      attrib_to_BDA(values['-ATTRIBUTE_ID-'], values['-ATTRIBUTE_NAME-'], window)
+      attrib_name = values['-ATTRIBUTE_NAME-']
+      attrib_id = values['-ATTRIBUTE_ID-']
+      attrib_description = smip.graphQL.get_equipment_description(url, smip_token, attrib_id)
+      data_type = attrib_description['attribute']['dataType']
+      if data_type == "OBJECT":
+        df = smip.graphQL.get_lot_series(url, smip_token, attrib_id)
+        feature_list = df.columns.tolist()
+        ls_to_BDA(attrib_id, attrib_name, feature_list, window)
+      else:
+        ts_to_BDA(attrib_id,attrib_name, window)
       window['-ATTRIBUTE_NAME-'].update(select=True)
+      statusbar.update("Send attrib {} to bda tab with name {}".
+        format(values['-ATTRIBUTE_ID-'], values['-ATTRIBUTE_NAME-']) )
     except Exception as err:
+      statusbar.update("Couldn't send attrib {} to bda tab".
+        format(values['-ATTRIBUTE_ID-']) )
       print(err)
     return True
 
   if event == "-SEND_TO_BDA-":
     try:
       token_to_BDA(url, username, role, password, smip_token)
+      statusbar.update("TOKEN SENT TO BDA SIDE")
     except Exception as err:
       print(err)
     return True
+
+  if event == "-SEND_TO_CLIPBOARD-":
+    try:
+      pyperclip.copy(smip_token)
+      statusbar.update("TOKEN COPIED TO CLIPBOARD")
+    except Exception as err:
+      print(err)
+    return True
+
+
 
   return False
 
@@ -199,7 +173,7 @@ if __name__ == "__main__":
   while True:
     event, values = window.read()
     
-    handler(event, values, window, None, None)
+    handler(event, values, window, None, None, None)
 
     if event == sg.WINDOW_CLOSED:
       break

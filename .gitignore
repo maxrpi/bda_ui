@@ -130,3 +130,13 @@ dmypy.json
 src/.config.ini
 src/foo.txt
 src/bar.txt
+
+
+#My own
+.vscode/*
+*/.vscode/*
+*.mko
+*.txt
+*.csv
+*/tmp
+*.swp

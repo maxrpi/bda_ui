@@ -2,11 +2,16 @@ import json
 import pandas as pd
 import dateutil.parser
 import numpy as np
+from datetime import datetime
 
-def max_time_range():
-    start_time = dateutil.parser.parse("1900-01-01").strftime("%Y-%m-%dT%H:%M:%SZ")
-    end_time = dateutil.parser.parse("2200-01-01").strftime("%Y-%m-%dT%H:%M:%SZ")
-    return (start_time, end_time)
+timeformat = "%Y-%m-%dT%H:%M:%SZ"
+
+def max_time_range(as_datetime=False):
+    start_time = dateutil.parser.parse("1900-01-01")
+    end_time = dateutil.parser.parse("2200-01-01")
+    if as_datetime:
+      return (start_time, end_time)
+    return (start_time.strftime(timeformat), end_time.strftime(timeformat))
 
 def format_time_series_stamped(datafile, index, max_timerange=False):
   df = pd.read_csv(datafile, usecols=[0,index], parse_dates=[0], dayfirst=True,
@@ -23,6 +28,29 @@ def format_time_series_stamped(datafile, index, max_timerange=False):
     line = ' {{timestamp: "{}", value: "{}", status: "0" }}\n'.format(ts, row['data'])
     stamped_data = stamped_data + line
   return (start_time, end_time, stamped_data)
+
+def standardize_timestamp(timestamp, unix_timestamp=False):
+  if unix_timestamp:
+    as_datetime = datetime.fromtimestamp(timestamp)
+  else: 
+    as_datetime = timestamp
+  return as_datetime.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+def table_to_lotseries(timestamp_start, ts_increment, table, unix_timestamp=False):
+  entries = []
+  times = []
+  time = timestamp_start
+  for i in range(table.shape[0]):
+    entries.append(row_to_lot(time, table.iloc[i], unix_timestamp))
+    times.append(standardize_timestamp(time, unix_timestamp))
+    time = time + ts_increment
+  return entries, times
+
+def row_to_lot(timestamp, row, unix_timestamp):
+  timestamp_str = standardize_timestamp(timestamp, unix_timestamp)
+  json_string = row.to_json().replace('"','\\"')
+  return f'''{{timestamp: "{timestamp_str}", status: "0", value: "{json_string}"}}'''
+
 
 def json_timeseries_to_table(jd):
   
