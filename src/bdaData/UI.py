@@ -80,7 +80,8 @@ def add_timeseries(attrib_id, attrib_name, window):
     window['-TS_FEATURE_LIST-'].update(values=ts.avail_keys)
     new_index = ts.avail_keys.index(attrib_name)
     window['-TS_FEATURE_LIST-'].update(set_to_index=[new_index],
-    scroll_to_index=new_index)
+      scroll_to_index=new_index)
+    timeseries_tab.select()
   else:
     statusbar.update("Updating name {} to id {}".format(attrib_name, attrib_id))
     ts.known_features[attrib_name] = attrib_id
@@ -97,6 +98,7 @@ def add_lot_series(attrib_id, attrib_name, feature_list, window):
   window['-LS_FEATURE_LIST-'].update(values=ls.avail_keys)
   window['-LS_INPUTS_LIST-'].update(values=ls.inputs_keys)
   window['-LS_OUTPUTS_LIST-'].update(values=ls.outputs_keys)
+  lot_series_tab.select()
 
 def avail_to_inputs(values, window, tab):
   selected_indexes = window[f'-{tab.prefix}_FEATURE_LIST-'].get_indexes()

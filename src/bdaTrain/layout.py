@@ -106,7 +106,9 @@ layout = [
           sg.Table(
             values=[[]],
             headings=["MKO", "stage"],
-            col_widths = [15,6],
+            col_widths = [6,4],
+            auto_size_columns=False,
+            num_rows=10,
             justification='center',
             background_color="white",
             text_color="black",
@@ -162,6 +164,9 @@ layout = [
           select_mode="LISTBOX_SELECT_MODE_SINGLE",
           key="-DT_READY_MKOS-"
         ),
+      ],
+      [
+        sg.B("DELETE", key="DT_DELETE_READY-")
       ],
     ], vertical_alignment="top"),
     sg.Column([

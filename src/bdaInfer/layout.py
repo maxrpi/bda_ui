@@ -35,7 +35,10 @@ layout = [
             select_mode="LISTBOX_SELECT_MODE_SINGLE",
             key="-BI_AVAILABLE_MKOS-"
             ),
-        ]
+        ],
+        [
+          sg.B("DELETE", key="-BI_DELETE_AVAILABLE_MKO-")
+        ],
       ]
     ),
     sg.Frame("ANALYSES", layout=[[option_tabs]],  size=(425,300)),
@@ -56,6 +59,9 @@ layout = [
         ],
         [
           sg.B("Display Analysis", enable_events=True, key="-DISPLAY_ANALYSIS-")
+        ],
+        [
+          sg.B("DELETE", key="-BI_DELETE_ANALYSIS-")
         ]
       ]
     ) ,

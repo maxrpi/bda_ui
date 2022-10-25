@@ -26,6 +26,9 @@ class CloudplotUI(AnalysisUI):
       sg.In("", visible=True, enable_events=True, key="-CLOUDPLOT_DATA_FILENAME-"),
     ],
     [
+      sg.Checkbox("Errorbars", enable_events=True, key="-CLOUDPLOT_ERRORBARS-")
+    ],
+    [
       sg.B("GO!", enable_events=True, key="-CLOUDPLOT_GO-")
     ]
   ]
@@ -41,6 +44,9 @@ class CloudplotUI(AnalysisUI):
       return True
     if event == "-CLOUDPLOT_N_SAMPLES-":
       cls.analysis_data['n_samples'] = values["-CLOUDPLOT_N_SAMPLES-"]
+      return True
+    if event == "-CLOUDPLOT_ERRORBARS-":
+      cls.analysis_data['error_bars'] = values["-CLOUDPLOT_ERRORBARS-"]
       return True
     if event == "-CLOUDPLOT_GO-":
       return False

@@ -1,4 +1,5 @@
 import json
+from footer import statusbar
 
 from bdaTrain.layout import (
   layer_keys,
@@ -53,7 +54,10 @@ def get_hyperparameter_spec(values):
   loss_function = values['-DT_LOSSFUNCTION-']
   optimizer = values['-DT_OPTIMIZER-']
   lr_schedule = values['-DT_LR_SCHEDULE-']
-  lr_schedule = json.loads(lr_schedule)
+  try:
+    lr_schedule = json.loads(lr_schedule)
+  except:
+    statusbar.error("Bad learning rate schedule")
 
   hypers = {
     "batch_size"    : batch_size,

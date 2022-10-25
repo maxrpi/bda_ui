@@ -239,6 +239,18 @@ def handler(event, values, window, add_mko_to_infer):
     send_to_ondeck(mko, values, window)
     return True
 
+  if event == "-DT_DELETE_READY-":
+    selected_indices = window['-DT_READY_MKOS-'].get_indexes()
+    if len(selected_indices) == 0:
+      statusbar.update("NO MKO SELECTED TO DELETE")
+      return True
+    ready_index = selected_indices[0]
+    name = bt.ready_mkos[ready_index]
+    bt.ready_mkos.remove(name)
+    del bt.known_mkos[name]
+    window['-DT_READY_MKOS-'].update(values=bt.ready_mkos )
+    return True
+
   if event == "-DT_TO_INFER-":
     selected_indices = window['-DT_READY_MKOS-'].get_indexes()
     if len(selected_indices) == 0:

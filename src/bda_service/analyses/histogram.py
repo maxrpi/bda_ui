@@ -20,7 +20,6 @@ class Histogram(Analysis):
     input_df = input_df.rename(columns=mapping)
     cols = self._mko.dataspec['inputs']
     inputs = encodings.b64encode_datatype(input_df[cols].to_numpy()[0])
-    #inputs = encodings.b64encode_datatype(np.loadtxt(self._analysis_data['input_filename'],delimiter=","))
     n_samples = self._analysis_data.get('n_samples', "0")
     n_bins = self._analysis_data.get('n_bins', "0")
     try: int(n_bins)
@@ -39,26 +38,27 @@ class Histogram(Analysis):
     if not self.ready:
       raise Exception("Not ready")
     return self._contents
-    
-  
+   
   def return_contents_as_image(self):
     if not self.ready:
       raise Exception("Not ready")
 
-    image = encodings.decode_base64(self.contents)
-    return image
+    coded_images = encodings.b64decode_datatype(self.contents)
+    return [ encodings.decode_base64(image)  for image in coded_images ]
 
   def display_in_window(self):
-    window = sg.Window("Histogram",
+    window = sg.Window("HISTOGRAM",
       [
-        [ sg.Text("Histogram:", enable_events=False), ],
+        [ sg.Text("HISTOGRAM:", enable_events=False), ],
         [
+          sg.B("PREVIOUS", enable_events=True, key="-PREVIOUS-"), 
+          sg.B("NEXT", enable_events=True, key="-NEXT-"), 
           sg.In("", visible=False, enable_events=True, key="-SAVE_FILENAME-"),
           sg.SaveAs("SAVE",
             key="-SAVEAS-", target="-SAVE_FILENAME-",
             default_extension=".png",
             file_types=[('PNG','*.png'), ('PNG','*.PNG')],
-            initial_folder="data"
+            initial_folder="data",
           ),
           sg.B("EXIT", enable_events=True, key="-EXIT-")
         ],
@@ -66,16 +66,27 @@ class Histogram(Analysis):
       ]
     , finalize=True, size=(510,600))
     
-    image = self.return_contents_as_image()
-    window['-IMAGE_BOX-'].update(data=image)
+    images = self.return_contents_as_image()
+    n_images = len(images)
+    index = 0
+    index = index % n_images
+
+    window['-IMAGE_BOX-'].update(data=images[index])
 
     while True:
       event, values = window.read()
       if event == sg.WINDOW_CLOSED or event == "-EXIT-":
         break
+      if event == "-NEXT-":
+        index = (index + 1) % n_images
+        window['-IMAGE_BOX-'].update(data=images[index])
+      if event == "-PREVIOUS-":
+        index = (index + n_images - 1) % n_images
+        window['-IMAGE_BOX-'].update(data=images[index])
       if event == "-SAVE_FILENAME-":
         filename = values["-SAVE_FILENAME-"]
         with open(filename, "wb") as fd:
-          fd.write(image)
+          fd.write(images[index])
           fd.close()
-    window.close()
+
+    window.close() 
