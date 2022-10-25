@@ -61,7 +61,7 @@ def handler(event, values, window):
   if event == "-CREATE_USER-":
     try:
       user = create_user(values)
-      statusbar.update("User {user} created on BDA server")
+      statusbar.update(f"User {user.username} created on BDA server")
     except Exception as err:
       print(err)
     return True
@@ -79,6 +79,6 @@ def handler(event, values, window):
       window['-BDA_EXPIRES-'].update(user.auth_expiration)
       statusbar.update("logged {} in on BDA server".format(user.username))
     except Exception as err:
-      statusbar.update("Could not login {} on server: {}".format(user.username, err))
+      statusbar.update("Could not login {} on server: {}".format(username, err))
     return True
   return False

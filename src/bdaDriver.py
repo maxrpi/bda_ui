@@ -14,15 +14,21 @@ import footer
 from support_functions.uifunctions import settings
 
 import refresher
-refresher.refresh_daemon.initialize(10)
+refresher.refresh_daemon.initialize(5)
 refresher.refresh_daemon.run()
 
+loginsTab = sg.Tab('BDA Logins', bdaLogins.layout)
+smipTab = sg.Tab('SMIP', smip.layout)
+dataTab = sg.Tab('BDA Data', bdaData.layout)
+trainTab = sg.Tab('BDA Training', bdaTrain.layout)
+inferTab = sg.Tab('BDA Infer', bdaInfer.layout)
+
 tab_group = sg.TabGroup([[
-  sg.Tab('BDA Logins', bdaLogins.layout),
-  sg.Tab('SMIP', smip.layout),
-  sg.Tab('BDA Data', bdaData.layout),
-  sg.Tab('BDA Training', bdaTrain.layout),
-  sg.Tab('BDA Infer', bdaInfer.layout),
+  loginsTab,
+  smipTab,
+  dataTab,
+  trainTab,
+  inferTab,
   ]])
 
 layout = [[tab_group],[footer.layout]]

@@ -25,6 +25,7 @@ class Cloudplot(Analysis):
       data_table = np.loadtxt(self._analysis_data['data_filename'],delimiter=",")
     data_table = encodings.b64encode_datatype(data_table)
 
+    error_bars = self._analysis_data.get('error_bars', False)
     n_samples = self._analysis_data.get('n_samples', "0")
     try: int(n_samples)
     except: n_samples = 0
@@ -33,6 +34,7 @@ class Cloudplot(Analysis):
       "mko" : mko_data,
       "data_table": data_table,
       "n_samples" : n_samples,
+      "error_bars" : str(error_bars)
     }
   
   def return_contents(self):
@@ -49,9 +51,9 @@ class Cloudplot(Analysis):
     return [ encodings.decode_base64(image)  for image in coded_images ]
 
   def display_in_window(self):
-    window = sg.Window("SAMPLES",
+    window = sg.Window("Correlation plot",
       [
-        [ sg.Text("SAMPLES:", enable_events=False), ],
+        [ sg.Text("Correlation plot:", enable_events=False), ],
         [
           sg.B("PREVIOUS", enable_events=True, key="-PREVIOUS-"), 
           sg.B("NEXT", enable_events=True, key="-NEXT-"), 

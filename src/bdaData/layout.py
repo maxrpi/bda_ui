@@ -72,7 +72,7 @@ timeseries_layout = [
     )
   ],
 ]
-timeseries_tab = [sg.Tab("Timeseries", timeseries_layout, key="-TIMESERIES_TAB-")]
+timeseries_tab = sg.Tab("Timeseries", timeseries_layout, key="-TIMESERIES_TAB-")
 
 lot_series_layout = [
   [
@@ -135,11 +135,11 @@ lot_series_layout = [
     )
   ],
 ]
-lot_series_tab = [sg.Tab("Lot Series", lot_series_layout, key="-LOT_SERIES_TAB-")]
+lot_series_tab = sg.Tab("Lot Series", lot_series_layout, key="-LOT_SERIES_TAB-")
 
 
 dataspec_tabs = sg.TabGroup(
-  [timeseries_tab, lot_series_tab],
+  [[timeseries_tab], [lot_series_tab]],
   expand_x=True,
   expand_y=True,
   enable_events=True,
@@ -155,7 +155,8 @@ layout = [
     sg.SaveAs("Download Request Data",
       default_extension=".txt",
       file_types=[('Text','*.txt')],
-      enable_events=True, initial_folder="data"
+      initial_folder="data",
+      enable_events=True,
     ),
   ],
   [

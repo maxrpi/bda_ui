@@ -45,9 +45,9 @@ class History(Analysis):
           ),
           sg.B("EXIT", enable_events=True, key="-EXIT-")
         ],
-        [ sg.Image(key="-IMAGE_BOX-", size=(500,500) ) ],
+        [ sg.Image(key="-IMAGE_BOX-", size=(550,500) ) ],
       ]
-    , finalize=True, size=(510,600))
+    , finalize=True, size=(560,600))
     
     image = self.return_contents_as_image()
     window['-IMAGE_BOX-'].update(data=image)

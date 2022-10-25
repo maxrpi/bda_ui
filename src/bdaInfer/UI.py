@@ -29,6 +29,13 @@ def add_mko(mko : bda_service.MKO, name, window):
   bi.mko_keys.sort()
   window['-BI_AVAILABLE_MKOS-'].update(bi.mko_keys)
 
+def delete_mko(name, window):
+  if name in bi.known_mkos:
+    del bi.known_mkos[name]
+  bi.mko_keys = list(bi.known_mkos.keys())
+  bi.mko_keys.sort()
+  window['-BI_AVAILABLE_MKOS-'].update(bi.mko_keys)
+
 
 def add_analysis(analysis, window):
   
@@ -109,6 +116,15 @@ def handler(event, values, window):
     refresher.refresh_daemon.add_task(analysis)
     statusbar.update(f"Queuing {mko_name} for {bi.current_analysis}")
     return True
+    
+  if event == "-BI_DELETE_AVAILABLE_MKO-":
+    selected_indices = window['-BI_AVAILABLE_MKOS-'].get_indexes()
+    if len(selected_indices) == 0:
+      statusbar.error("No MKO selected to delete")
+      return True
+    ready_index = selected_indices[0]
+    mko_name = bi.mko_keys[ready_index]
+    delete_mko(mko_name, window)
 
   if event == "-DISPLAY_ANALYSIS-":
     refresher.refresh_daemon.pause()
@@ -121,6 +137,18 @@ def handler(event, values, window):
     analysis.display_in_window()
     refresher.refresh_daemon.unpause()
     return True
+  
+  if event == "-BI_DELETE_ANALYSIS-":
+    selected_indices = window['-READY_ANALYSES-'].get_indexes()
+    if len(selected_indices) == 0:
+      statusbar.update("NO ANALYSIS SELECTED TO DELETE")
+      return True
+    ready_index = selected_indices[0]
+    name = bi.ready_analyses[ready_index]
+    bi.ready_analyses.remove(name)
+    window['-READY_ANALYSES-'].update(values=bi.ready_analyses)
+    del bi.known_analyses[name]
+
 
   if event == "-UNQUEUE_ANALYSES-":
     statusbar.update("Unqueuing all pending analyses")
